@@ -15,6 +15,54 @@ function norm(s){
   return o;
 }
 
+/* ---------- ひらがな照合（公式ヨミガナが無いリレー要員むけ） ----------
+   個人エントリー者は公式のヨミガナがあるのでそちらを使う。
+   リレー要員(list03.pdf)には読みの欄が無いので、漢字の読み候補をつないで照合する。 */
+const YOMI=D.yomi||{};
+const isHira=v=>/^[ぁ-ゖ]{3,}$/.test(v);
+function readingsOf(text){
+  const out=[]; let prev="";
+  for(const ch of text){
+    if(ch==="々"&&prev)out.push(YOMI[prev]||[]);
+    else if(ch>="ぁ"&&ch<="ゖ")out.push([ch]);
+    else out.push(YOMI[ch]||[]);
+    prev=ch;
+  }
+  return out;
+}
+function kanaHit(text,query){
+  const name=norm(text);
+  if(!name||!query)return false;
+  const rd=readingsOf(name), seen=new Map();
+  const walk=(i,pos)=>{
+    if(pos>=query.length)return 2;
+    if(i>=name.length)return 0;
+    const key=i+":"+pos;
+    if(seen.has(key))return seen.get(key);
+    seen.set(key,0);
+    let best=0; const rest=query.slice(pos);
+    for(const r of rd[i]){
+      if(r.startsWith(rest))best=Math.max(best,1);
+      if(rest.startsWith(r)){
+        const next=pos+r.length;
+        best=Math.max(best,walk(i+1,next));
+        if("のがつっ".includes(query[next]||"")&&next+1<query.length)best=Math.max(best,walk(i+1,next+1));
+      }
+      if(best===2)break;
+    }
+    seen.set(key,best); return best;
+  };
+  seen.clear();
+  return walk(0,0)>0;      // 頭から当たったものだけ（途中一致は誤ヒットが多いので採らない）
+}
+/* 姓・名それぞれの頭からも試す（「りおな」のような下の名前検索むけ） */
+function kanaMatch(text,query){
+  if(kanaHit(text,query))return true;
+  const parts=String(text||"").split(/[\s　]+/).filter(Boolean);
+  if(parts.length>1)for(const t of parts){ if(kanaHit(t,query))return true; }
+  return false;
+}
+
 /* ---------- 人 ---------- */
 const people=[];
 const byKey=new Map();
@@ -24,7 +72,7 @@ D.swim.forEach(r=>{
   people.push(p);byKey.set(p.pref+" "+norm(p.name),p);
 });
 D.staff.forEach(r=>{
-  const p={no:r[0],name:r[1],kana:"",pref:r[2],club:r[3],ckana:"",grade:r[4],age:r[5]+"才",g:r[6],ckey:r[7],ev:[],rel:[],relayOnly:true};
+  const p={no:r[0],name:r[1],kana:"",pref:r[2],club:r[3],ckana:"",grade:r[4],age:r[5]+"才",g:r[6],ckey:r[7],ev:[],rel:[],relayOnly:true,guessKana:true};
   p.q=norm(p.name)+"|"+norm(p.club)+"|"+norm(PREF[p.pref])+"|"+p.no;
   people.push(p);
   const k=p.pref+" "+norm(p.name); if(!byKey.has(k))byKey.set(k,p);
@@ -152,7 +200,10 @@ function runSearch(reset){
   if(fGender!=="all")list=list.filter(p=>p.g===+fGender);
   if(fCls!==null)list=list.filter(p=>p.clsSet.has(fCls));
   if(fKen!==null)list=list.filter(p=>p.pref===fKen);
-  if(q)list=list.filter(p=>p.q.indexOf(q)>=0);
+  if(q){
+    const hira=isHira(q);
+    list=list.filter(p=>p.q.indexOf(q)>=0||(hira&&p.guessKana&&(kanaMatch(p.name,q)||kanaMatch(p.club,q))));
+  }
   list=list.slice().sort((a,b)=>a.pref-b.pref||a.ckey.localeCompare(b.ckey,"ja")||a.g-b.g||b.ev.length-a.ev.length);
   $("qCount").textContent=list.length.toLocaleString("ja-JP")+"人";
   const view=list.slice(0,qShown);
