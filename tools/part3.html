@@ -73,12 +73,26 @@ document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{
   window.scrollTo({top:0});
 }));
 
+/* ---------- 種目へジャンプ（個人カード→種目別/リレータブ） ---------- */
+let gotoEvent=null, gotoRelay=null;
+function flashRow(el){
+  if(!el)return;
+  el.scrollIntoView({block:"center"});
+  el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+}
+
 /* ---------- 詳細シート ---------- */
 const detail=$("detail"), sheet=$("sheet");
 detail.addEventListener("click",ev=>{ if(ev.target===detail)closeSheet(); });
 function closeSheet(){detail.classList.remove("open");document.body.style.overflow="";}
 function openSheet(html){sheet.innerHTML=html;detail.classList.add("open");document.body.style.overflow="hidden";sheet.scrollTop=0;
   const b=sheet.querySelector(".close-btn"); if(b)b.addEventListener("click",closeSheet);}
+sheet.addEventListener("click",e=>{
+  const ev=e.target.closest("[data-jump-ev]");
+  if(ev&&gotoEvent){closeSheet();gotoEvent(+ev.dataset.jumpEv,+ev.dataset.jumpP);return;}
+  const rl=e.target.closest("[data-jump-rl]");
+  if(rl&&gotoRelay){closeSheet();gotoRelay(+rl.dataset.jumpRl,+rl.dataset.jumpTeam);}
+});
 
 function personSheet(p){
   const gc=p.g===0?"m":"f";
@@ -89,21 +103,25 @@ function personSheet(p){
     h+='<div class="gblock '+gc+'">個人種目 <span>'+p.ev.length+'種目</span></div>';
     p.ev.forEach(x=>{
       const e=x.e;
-      h+='<div class="ev-card '+gc+'"><div class="ev-head"><div class="ev-name">'+esc(evName(e))+'</div>'+
+      h+='<button type="button" class="ev-card '+gc+'" data-jump-ev="'+e.i+'" data-jump-p="'+p.pi+'">'+
+        '<div class="ev-head"><div class="ev-name">'+esc(evName(e))+'</div>'+
         '<span class="badge">競技No.'+e.no+'</span></div>'+
         '<div class="ev-sched">'+DAYLABEL[e.day]+(e.time?" "+e.time+"ごろ〜":"")+' / '+heatText(e)+'</div>'+
         '<div class="ev-grid"><div><span>エントリータイム</span><b>'+esc(x.t)+'</b></div>'+
-        '<div><span>申込順</span><b>'+x.rank+' / '+x.n+'</b></div></div></div>';
+        '<div><span>申込順</span><b>'+x.rank+' / '+x.n+'</b></div></div>'+
+        '<span class="jump">この種目の一覧を見る →</span></button>';
     });
   }
   if(p.rel.length){
     h+='<div class="gblock '+gc+'">リレー <span>'+p.rel.length+'種目</span></div>';
     p.rel.forEach(x=>{
-      h+='<div class="ev-card '+gc+'"><div class="ev-head"><div class="ev-name">'+esc(evName(x.e))+'</div>'+
+      h+='<button type="button" class="ev-card '+gc+'" data-jump-rl="'+x.e.i+'" data-jump-team="'+x.rank+'">'+
+        '<div class="ev-head"><div class="ev-name">'+esc(evName(x.e))+'</div>'+
         '<span class="badge">競技No.'+x.e.no+'</span></div>'+
         '<div class="ev-sched">'+DAYLABEL[x.e.day]+(x.e.time?" "+x.e.time+"ごろ〜":"")+' / '+esc(x.team)+'</div>'+
         '<div class="ev-grid"><div><span>チームのタイム</span><b>'+esc(x.t)+'</b></div>'+
-        '<div><span>申込の泳者順</span><b>第'+x.order+'泳者</b></div></div></div>';
+        '<div><span>申込の泳者順</span><b>第'+x.order+'泳者</b></div></div>'+
+        '<span class="jump">この種目の一覧を見る →</span></button>';
     });
   }
   if(!p.ev.length&&!p.rel.length)h+='<p class="foot">リレー要員として登録されています(泳者順は当日発表)。</p>';
@@ -210,6 +228,13 @@ runSearch(true);
   $("evQ").addEventListener("input",render);
   $("evBtn").addEventListener("click",render);
   $("evBody").addEventListener("click",e2=>{const b=e2.target.closest("[data-p]");if(b)personSheet(people[+b.dataset.p]);});
+  gotoEvent=function(evIdx,pi){
+    $("evQ").value="";
+    sel.value=evIdx;
+    render();
+    document.querySelector('.tab[data-tab="event"]').click();
+    requestAnimationFrame(()=>flashRow($("evBody").querySelector('[data-p="'+pi+'"]')));
+  };
   render();
 })();
 
@@ -238,7 +263,7 @@ runSearch(true);
     if(q)rows=rows.filter(x=>(norm(x.team)+x.kana+norm(PREF[x.pref])+norm(x.mem.join(""))).indexOf(q)>=0);
     $("rlCount").textContent=rows.length+" / "+e.rows.length+"チーム";
     $("rlBody").innerHTML=rows.length?rows.map(x=>
-      '<div class="card '+gc+'"><div style="padding:14px">'+
+      '<div class="card '+gc+'" data-rank="'+x.rank+'"><div style="padding:14px">'+
       '<div class="card-head"><div><div class="name" style="font-size:20px">'+esc(x.team)+'<span class="gtag '+gc+'">'+(e.g===0?"男子":"女子")+'</span></div>'+
       '<div class="sub">'+esc(PREF[x.pref])+" / "+esc(x.gaku)+'</div></div>'+
       '<span class="no-badge">申込'+x.rank+'位</span></div>'+
@@ -250,6 +275,13 @@ runSearch(true);
   sel.addEventListener("change",render);
   $("rlQ").addEventListener("input",render);
   $("rlBtn").addEventListener("click",render);
+  gotoRelay=function(evIdx,rank){
+    $("rlQ").value="";
+    sel.value=evIdx;
+    render();
+    document.querySelector('.tab[data-tab="relay"]').click();
+    requestAnimationFrame(()=>flashRow($("rlBody").querySelector('[data-rank="'+rank+'"]')));
+  };
   render();
 })();
 

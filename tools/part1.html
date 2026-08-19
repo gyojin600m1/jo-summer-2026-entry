@@ -213,6 +213,12 @@ main{padding:16px}
 .progmain span{display:block;color:var(--muted);font-size:12px;margin-top:3px}
 .progtime{text-align:right;color:var(--accent);font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:15px}
 .progtime small{display:block;color:var(--faint);font-size:11px;font-weight:700;margin-top:2px}
+/* 個人カード→種目へジャンプ */
+button.ev-card{display:block;width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer}
+button.ev-card:active{background:rgba(20,59,105,.9)}
+.jump{display:block;margin-top:10px;color:var(--accent);font-size:13px;font-weight:850}
+@keyframes flashrow{0%{box-shadow:0 0 0 0 rgba(9,200,255,.85)}30%{box-shadow:0 0 0 4px rgba(9,200,255,.55)}100%{box-shadow:0 0 0 0 rgba(9,200,255,0)}}
+.flash{animation:flashrow 1.8s ease-out 2;border-color:var(--accent) !important}
 @media (max-width:380px){ .gsplit{grid-template-columns:1fr} .progrow{grid-template-columns:48px minmax(0,1fr) auto;padding:10px 8px} }
 </style>
 </head>
