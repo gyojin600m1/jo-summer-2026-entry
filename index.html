@@ -213,6 +213,9 @@ main{padding:16px}
 .progmain span{display:block;color:var(--muted);font-size:12px;margin-top:3px}
 .progtime{text-align:right;color:var(--accent);font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:15px}
 .progtime small{display:block;color:var(--faint);font-size:11px;font-weight:700;margin-top:2px}
+/* Entry順位のバッジ内表記 */
+.badge b.ent{font-weight:900;letter-spacing:.02em;opacity:.92;margin-left:2px}
+.badge.accent b.ent,.badge.warn b.ent{opacity:1}
 /* 個人カード→種目へジャンプ */
 button.ev-card{display:block;width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer}
 button.ev-card:active{background:rgba(20,59,105,.9)}
@@ -277,7 +280,7 @@ button.ev-card:active{background:rgba(20,59,105,.9)}
         <div class="team-list" id="kenList"></div>
       </div>
       <div class="section-title"><span>選手</span><span id="qCount"></span></div>
-      <p class="foot" style="margin:-4px 0 12px">バッジのタイムは<b>エントリータイム</b>、「申込◯位」はその種目に申し込んだ人の中で速い順に数えた位置で、レース結果ではありません（<span style="color:var(--accent)">水色=1位</span>／<span style="color:var(--warn)">黄色=8位以内</span>）。</p>
+      <p class="foot" style="margin:-4px 0 12px">バッジの数字は<b>Entry Time</b>、<b>Entry ◯位</b>はその種目に申し込んだ人の中で速い順に数えた位置です（レース結果ではありません／<span style="color:var(--accent)">水色=1位</span>・<span style="color:var(--warn)">黄色=8位以内</span>）。</p>
       <div class="cards" id="qList"></div>
       <div style="margin-top:14px"><button class="linkbtn" id="qMore" type="button" hidden>さらに表示</button></div>
     </section>
@@ -363,7 +366,8 @@ button.ev-card:active{background:rgba(20,59,105,.9)}
           <li><b>予選は10レーン</b>、決勝・B決勝は8レーンで行われます。組・レーンは大会当日の発表です</li>
           <li>予選申込25名以上の種目はB決勝あり。リレーと15〜16歳・CSは、CSの50m背/平/バタ・女子800m・男子1500mを除いて<b>決勝のみ</b></li>
           <li><b>所属の「／」</b>は2団体併記（プログラムに両方載る申込）です</li>
-          <li><b>リレーの泳者順</b>は申込時のもので、大会当日に変更されることがあります</li>
+          <li><b>リレーの泳者順</b>はEntry時のもので、大会当日に変更されることがあります</li>
+          <li><b>Entry Time</b>＝申込タイム、<b>Entry ◯位</b>＝その種目の申込者を速い順に並べた位置。どちらもレース結果ではありません</li>
           <li>ひらがなでも検索できます（公式のヨミガナを検索用にだけ使っています。画面には出しません）</li>
         </ul>
       </div>
@@ -487,8 +491,8 @@ function personSheet(p){
         '<div class="ev-head"><div class="ev-name">'+esc(evName(e))+'</div>'+
         '<span class="badge">競技No.'+e.no+'</span></div>'+
         '<div class="ev-sched">'+DAYLABEL[e.day]+(e.time?" "+e.time+"ごろ〜":"")+' / '+heatText(e)+'</div>'+
-        '<div class="ev-grid"><div><span>エントリータイム</span><b>'+esc(x.t)+'</b></div>'+
-        '<div><span>申込順</span><b>'+x.rank+' / '+x.n+'</b></div></div>'+
+        '<div class="ev-grid"><div><span>Entry Time</span><b>'+esc(x.t)+'</b></div>'+
+        '<div><span>Entry 順位</span><b>'+x.rank+' / '+x.n+'</b></div></div>'+
         '<span class="jump">この種目の一覧を見る →</span></button>';
     });
   }
@@ -499,8 +503,8 @@ function personSheet(p){
         '<div class="ev-head"><div class="ev-name">'+esc(evName(x.e))+'</div>'+
         '<span class="badge">競技No.'+x.e.no+'</span></div>'+
         '<div class="ev-sched">'+DAYLABEL[x.e.day]+(x.e.time?" "+x.e.time+"ごろ〜":"")+' / '+esc(x.team)+'</div>'+
-        '<div class="ev-grid"><div><span>チームのタイム</span><b>'+esc(x.t)+'</b></div>'+
-        '<div><span>申込の泳者順</span><b>第'+x.order+'泳者</b></div></div>'+
+        '<div class="ev-grid"><div><span>Entry Time</span><b>'+esc(x.t)+'</b></div>'+
+        '<div><span>Entry の泳者順</span><b>第'+x.order+'泳者</b></div></div>'+
         '<span class="jump">この種目の一覧を見る →</span></button>';
     });
   }
@@ -515,9 +519,9 @@ function personCard(p){
   let badges="";
   p.ev.slice(0,6).forEach(x=>{
     const cl=x.rank===1?"badge accent":(x.rank<=8?"badge warn":"badge");
-    badges+='<span class="'+cl+'">'+esc(CLS[x.e.cls]+" "+x.e.dist+STY[x.e.style])+" "+esc(x.t)+" (申込"+x.rank+"位)</span>";
+    badges+='<span class="'+cl+' wrap">'+esc(CLS[x.e.cls]+" "+x.e.dist+STY[x.e.style])+" "+esc(x.t)+' <b class="ent">Entry '+x.rank+'位</b></span>';
   });
-  p.rel.slice(0,4).forEach(x=>{ badges+='<span class="badge">'+esc(CLS[x.e.cls]+" "+x.e.dist+STY[x.e.style])+'</span>'; });
+  p.rel.slice(0,4).forEach(x=>{ badges+='<span class="badge wrap">'+esc(CLS[x.e.cls]+" "+x.e.dist+STY[x.e.style])+'</span>'; });
   if(!badges)badges='<span class="badge">リレー要員</span>';
   return '<div class="card '+gc+'"><button class="card-btn" type="button" data-p="'+p.pi+'">'+
     '<div class="card-head"><div><div class="name">'+esc(p.name)+'<span class="gtag '+gc+'">'+(p.g===0?"男子":"女子")+'</span></div>'+
@@ -590,6 +594,7 @@ runSearch(true);
     $("evTitle").textContent=evName(e);
     $("evMeta").innerHTML='<span class="badge">競技No.'+e.no+'</span>'+
       '<span class="badge">'+e.day+'日目 '+DAYLABEL[e.day]+(e.time?" "+e.time+"ごろ〜":"")+'</span>'+
+      '<span class="badge">Entry順（申込タイムの速い順）</span>'+
       '<span class="badge wrap">'+heatText(e)+' / 10レーン</span>'+
       '<span class="badge wrap">組・レーンは大会当日の発表です</span>'+
       (e.mix>1?'<span class="badge wrap">この競技No.は 13〜14歳・15〜16歳・ＣＳ が一緒に予選を泳ぎ、決勝は区分ごとに分かれます</span>':"");
@@ -638,7 +643,7 @@ runSearch(true);
     $("rlMeta").innerHTML='<span class="badge">競技No.'+e.no+'</span>'+
       '<span class="badge">'+e.day+'日目 '+DAYLABEL[e.day]+(e.time?" "+e.time+"ごろ〜":"")+'</span>'+
       '<span class="badge">'+(e.heats||"?")+'組</span>'+
-      '<span class="badge wrap">泳者順は申込時のもの。当日変更されることがあります</span>';
+      '<span class="badge wrap">泳者順はEntry時のもの。当日変更されることがあります</span>';
     let rows=e.rows.map((r,i)=>({no:r[0],pref:r[1],team:r[2],t:r[3],mem:r[4],gaku:r[5],kana:r[6],rank:i+1}));
     if(q)rows=rows.filter(x=>(norm(x.team)+x.kana+norm(PREF[x.pref])+norm(x.mem.join(""))).indexOf(q)>=0);
     $("rlCount").textContent=rows.length+" / "+e.rows.length+"チーム";
@@ -646,7 +651,7 @@ runSearch(true);
       '<div class="card '+gc+'" data-rank="'+x.rank+'"><div style="padding:14px">'+
       '<div class="card-head"><div><div class="name" style="font-size:20px">'+esc(x.team)+'<span class="gtag '+gc+'">'+(e.g===0?"男子":"女子")+'</span></div>'+
       '<div class="sub">'+esc(PREF[x.pref])+" / "+esc(x.gaku)+'</div></div>'+
-      '<span class="no-badge">申込'+x.rank+'位</span></div>'+
+      '<span class="no-badge">Entry '+x.rank+'位</span></div>'+
       '<div class="badge-row"><span class="badge time">'+esc(x.t)+'</span></div>'+
       '<div class="mem">'+x.mem.map((n,i)=>'<span>'+(i+1)+". "+esc(n)+"</span>").join("")+'</div>'+
       '</div></div>').join(""):
