@@ -1,0 +1,362 @@
+<script id="app-data" type="application/json">__DATA__</script>
+<script>
+(function(){
+"use strict";
+const D=JSON.parse(document.getElementById("app-data").textContent);
+const PREF=D.prefs, CLS=D.cls, STY=D.sty;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const DAYLABEL=["","8/22(土)","8/23(日)","8/24(月)","8/25(火)","8/26(水)"];
+
+function norm(s){
+  s=String(s==null?"":s).normalize("NFKC").toLowerCase().replace(/[\s・／\/]/g,"");
+  let o="";
+  for(const ch of s){const c=ch.codePointAt(0);o+=(c>=0x30a1&&c<=0x30f6)?String.fromCodePoint(c-0x60):ch;}
+  return o;
+}
+
+/* ---------- 人 ---------- */
+const people=[];
+const byKey=new Map();
+D.swim.forEach(r=>{
+  const p={no:r[0],name:r[1],kana:r[2],pref:r[3],club:r[4],ckana:r[5],grade:r[6],age:r[7],g:r[8],ckey:r[9],ev:[],rel:[],relayOnly:false};
+  p.q=norm(p.name)+"|"+p.kana+"|"+norm(p.club)+"|"+p.ckana+"|"+norm(PREF[p.pref])+"|"+p.no;
+  people.push(p);byKey.set(p.pref+" "+norm(p.name),p);
+});
+D.staff.forEach(r=>{
+  const p={no:r[0],name:r[1],kana:"",pref:r[2],club:r[3],ckana:"",grade:r[4],age:r[5]+"才",g:r[6],ckey:r[7],ev:[],rel:[],relayOnly:true};
+  p.q=norm(p.name)+"|"+norm(p.club)+"|"+norm(PREF[p.pref])+"|"+p.no;
+  people.push(p);
+  const k=p.pref+" "+norm(p.name); if(!byKey.has(k))byKey.set(k,p);
+});
+people.forEach((p,i)=>p.pi=i);
+
+/* ---------- 種目 ---------- */
+function evName(e){ return CLS[e.cls]+" "+(e.g===0?"男子":"女子")+" "+e.dist+" "+STY[e.style]; }
+function heatText(e){
+  const unit=e.style>=5?"チーム":"人";
+  return e.mix>1
+    ? "予選は"+e.mix+"区分あわせて "+e.tot+unit+"・"+(e.heats||"?")+"組（"+CLS[e.cls]+"は"+e.rows.length+unit+"）"
+    : "予選 "+e.rows.length+unit+"・"+(e.heats||"?")+"組";
+}
+D.events.forEach((e,i)=>{
+  e.i=i; e.label="No."+e.no+" "+evName(e);
+  e.rows.forEach((r,ri)=>{ people[r[0]].ev.push({e:e,rank:ri+1,n:e.rows.length,t:r[1]}); });
+});
+D.relays.forEach((e,i)=>{
+  e.i=i; e.label="No."+e.no+" "+evName(e);
+  e.rows.forEach((r,ri)=>{
+    r[4].forEach((nm,oi)=>{
+      const p=byKey.get(r[1]+" "+norm(nm));
+      if(p)p.rel.push({e:e,team:r[2],rank:ri+1,n:e.rows.length,t:r[3],order:oi+1});
+    });
+  });
+});
+people.forEach(p=>{
+  p.ev.sort((a,b)=>a.e.no-b.e.no||a.e.cls-b.e.cls);
+  p.clsSet=new Set(p.ev.map(x=>x.e.cls).concat(p.rel.map(x=>x.e.cls)));
+  p.q+="|"+p.ev.map(x=>norm(STY[x.e.style]+x.e.dist)).join("");
+});
+
+/* ---------- ヘッダ数値 ---------- */
+const S=D.stats;
+$("statPeople").textContent=S.people.toLocaleString("ja-JP");
+$("statClubs").textContent=S.clubs.toLocaleString("ja-JP");
+$("statKens").textContent=S.kens;
+$("statInd").textContent=S.ind.toLocaleString("ja-JP");
+$("statRelay").textContent=S.relay;
+
+/* ---------- タブ ---------- */
+document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));
+  document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id==="view-"+b.dataset.tab));
+  window.scrollTo({top:0});
+}));
+
+/* ---------- 詳細シート ---------- */
+const detail=$("detail"), sheet=$("sheet");
+detail.addEventListener("click",ev=>{ if(ev.target===detail)closeSheet(); });
+function closeSheet(){detail.classList.remove("open");document.body.style.overflow="";}
+function openSheet(html){sheet.innerHTML=html;detail.classList.add("open");document.body.style.overflow="hidden";sheet.scrollTop=0;
+  const b=sheet.querySelector(".close-btn"); if(b)b.addEventListener("click",closeSheet);}
+
+function personSheet(p){
+  const gc=p.g===0?"m":"f";
+  let h='<div class="sheet-head"><div><div class="name">'+esc(p.name)+'<span class="gtag '+gc+'">'+(p.g===0?"男子":"女子")+'</span></div>'+
+    '<div class="sub">'+esc(p.grade)+" "+esc(p.age)+" / "+esc(PREF[p.pref])+" / "+esc(p.club)+'</div></div>'+
+    '<button class="close-btn" type="button">&times;</button></div>';
+  if(p.ev.length){
+    h+='<div class="gblock '+gc+'">個人種目 <span>'+p.ev.length+'種目</span></div>';
+    p.ev.forEach(x=>{
+      const e=x.e;
+      h+='<div class="ev-card '+gc+'"><div class="ev-head"><div class="ev-name">'+esc(evName(e))+'</div>'+
+        '<span class="badge">競技No.'+e.no+'</span></div>'+
+        '<div class="ev-sched">'+DAYLABEL[e.day]+(e.time?" "+e.time+"ごろ〜":"")+' / '+heatText(e)+'</div>'+
+        '<div class="ev-grid"><div><span>エントリータイム</span><b>'+esc(x.t)+'</b></div>'+
+        '<div><span>申込順</span><b>'+x.rank+' / '+x.n+'</b></div></div></div>';
+    });
+  }
+  if(p.rel.length){
+    h+='<div class="gblock '+gc+'">リレー <span>'+p.rel.length+'種目</span></div>';
+    p.rel.forEach(x=>{
+      h+='<div class="ev-card '+gc+'"><div class="ev-head"><div class="ev-name">'+esc(evName(x.e))+'</div>'+
+        '<span class="badge">競技No.'+x.e.no+'</span></div>'+
+        '<div class="ev-sched">'+DAYLABEL[x.e.day]+(x.e.time?" "+x.e.time+"ごろ〜":"")+' / '+esc(x.team)+'</div>'+
+        '<div class="ev-grid"><div><span>チームのタイム</span><b>'+esc(x.t)+'</b></div>'+
+        '<div><span>申込の泳者順</span><b>第'+x.order+'泳者</b></div></div></div>';
+    });
+  }
+  if(!p.ev.length&&!p.rel.length)h+='<p class="foot">リレー要員として登録されています(泳者順は当日発表)。</p>';
+  openSheet(h);
+}
+
+/* ---------- 選手検索 ---------- */
+let fGender="all", fCls=null, fKen=null, qShown=60;
+function personCard(p){
+  const gc=p.g===0?"m":"f";
+  let badges="";
+  p.ev.slice(0,6).forEach(x=>{
+    const cl=x.rank===1?"badge accent":(x.rank<=8?"badge warn":"badge");
+    badges+='<span class="'+cl+'">'+esc(CLS[x.e.cls]+" "+x.e.dist+STY[x.e.style])+" "+esc(x.t)+" (申込"+x.rank+"位)</span>";
+  });
+  p.rel.slice(0,4).forEach(x=>{ badges+='<span class="badge">'+esc(CLS[x.e.cls]+" "+x.e.dist+STY[x.e.style])+'</span>'; });
+  if(!badges)badges='<span class="badge">リレー要員</span>';
+  return '<div class="card '+gc+'"><button class="card-btn" type="button" data-p="'+p.pi+'">'+
+    '<div class="card-head"><div><div class="name">'+esc(p.name)+'<span class="gtag '+gc+'">'+(p.g===0?"男子":"女子")+'</span></div>'+
+    '<div class="sub">'+esc(p.grade)+" "+esc(p.age)+" / "+esc(PREF[p.pref])+" / "+esc(p.club)+'</div></div>'+
+    '<span class="no-badge">No.'+p.no+'</span></div>'+
+    '<div class="badge-row">'+badges+'</div></button></div>';
+}
+function runSearch(reset){
+  if(reset)qShown=60;
+  const q=norm($("q").value);
+  let list=people;
+  if(fGender!=="all")list=list.filter(p=>p.g===+fGender);
+  if(fCls!==null)list=list.filter(p=>p.clsSet.has(fCls));
+  if(fKen!==null)list=list.filter(p=>p.pref===fKen);
+  if(q)list=list.filter(p=>p.q.indexOf(q)>=0);
+  list=list.slice().sort((a,b)=>a.pref-b.pref||a.ckey.localeCompare(b.ckey,"ja")||a.g-b.g||b.ev.length-a.ev.length);
+  $("qCount").textContent=list.length.toLocaleString("ja-JP")+"人";
+  const view=list.slice(0,qShown);
+  $("qList").innerHTML=view.length?view.map(personCard).join(""):
+    '<div class="empty"><div class="empty-icon">&#128269;</div><strong>見つかりません</strong><span>名前・ひらがな・クラブ・県のどれかで探せます</span></div>';
+  $("qMore").hidden=list.length<=qShown;
+  $("qMore").textContent="さらに表示(残り"+(list.length-qShown).toLocaleString("ja-JP")+"人)";
+}
+$("qList").addEventListener("click",e=>{const b=e.target.closest("[data-p]");if(b)personSheet(people[+b.dataset.p]);});
+$("q").addEventListener("input",()=>runSearch(true));
+$("qBtn").addEventListener("click",()=>runSearch(true));
+$("qMore").addEventListener("click",()=>{qShown+=60;runSearch(false);});
+document.querySelectorAll('[data-filter-group="gender"] .pill').forEach(b=>b.addEventListener("click",()=>{
+  fGender=b.dataset.value;
+  document.querySelectorAll('[data-filter-group="gender"] .pill').forEach(x=>x.classList.toggle("active",x===b));
+  runSearch(true);
+}));
+(function(){
+  const wrap=$("clsChips");
+  const cnt=CLS.map((_,ci)=>people.filter(p=>p.clsSet.has(ci)).length);
+  wrap.innerHTML='<button class="chip active" data-c="">すべて</button>'+CLS.map((c,i)=>'<button class="chip" data-c="'+i+'">'+esc(c)+'<b>'+cnt[i]+'</b></button>').join("");
+  wrap.addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;
+    wrap.querySelectorAll(".chip").forEach(x=>x.classList.toggle("active",x===b));
+    fCls=b.dataset.c===""?null:+b.dataset.c;runSearch(true);});
+})();
+(function(){
+  const cnt={};people.forEach(p=>cnt[p.pref]=(cnt[p.pref]||0)+1);
+  const top=Object.keys(cnt).map(Number).sort((a,b)=>cnt[b]-cnt[a]).slice(0,8);
+  const wrap=$("kenChips"), list=$("kenList");
+  wrap.innerHTML='<button class="chip active" data-k="">すべて</button>'+top.map(i=>'<button class="chip" data-k="'+i+'">'+esc(PREF[i])+'<b>'+cnt[i]+'</b></button>').join("");
+  list.innerHTML=PREF.map((n,i)=>'<button class="team-item" data-k="'+i+'">'+esc(n)+'<b>'+(cnt[i]||0)+'</b></button>').join("");
+  function pick(i){fKen=i;wrap.querySelectorAll(".chip").forEach(x=>x.classList.toggle("active",(x.dataset.k===""?null:+x.dataset.k)===i));runSearch(true);}
+  wrap.addEventListener("click",e=>{const b=e.target.closest(".chip");if(b)pick(b.dataset.k===""?null:+b.dataset.k);});
+  list.addEventListener("click",e=>{const b=e.target.closest(".team-item");if(b){pick(+b.dataset.k);list.classList.remove("open");$("toggleKens").textContent="&#9660; 47都道府県から選ぶ";window.scrollTo({top:0});}});
+  $("toggleKens").addEventListener("click",()=>{const o=list.classList.toggle("open");$("toggleKens").innerHTML=(o?"&#9650; 閉じる":"&#9660; 47都道府県から選ぶ");});
+})();
+runSearch(true);
+
+/* ---------- 種目別 ---------- */
+(function(){
+  const sel=$("evSelect");
+  let html="";
+  for(let d=1;d<=5;d++){
+    html+='<optgroup label="'+d+'日目 '+DAYLABEL[d]+'">';
+    D.events.filter(e=>e.day===d).forEach(e=>{
+      html+='<option value="'+e.i+'">No.'+e.no+' '+esc(evName(e))+' ('+e.rows.length+'人)</option>';
+    });
+    html+="</optgroup>";
+  }
+  sel.innerHTML=html;
+  function render(){
+    const e=D.events[+sel.value];
+    const q=norm($("evQ").value);
+    const gc=e.g===0?"m":"f";
+    $("evTitle").textContent=evName(e);
+    $("evMeta").innerHTML='<span class="badge">競技No.'+e.no+'</span>'+
+      '<span class="badge">'+e.day+'日目 '+DAYLABEL[e.day]+(e.time?" "+e.time+"ごろ〜":"")+'</span>'+
+      '<span class="badge wrap">'+heatText(e)+' / 10レーン</span>'+
+      '<span class="badge wrap">組・レーンは大会当日の発表です</span>'+
+      (e.mix>1?'<span class="badge wrap">この競技No.は 13〜14歳・15〜16歳・ＣＳ が一緒に予選を泳ぎ、決勝は区分ごとに分かれます</span>':"");
+    let rows=e.rows.map((r,i)=>({p:people[r[0]],t:r[1],rank:i+1}));
+    if(q)rows=rows.filter(x=>x.p.q.indexOf(q)>=0);
+    $("evCount").textContent=rows.length+" / "+e.rows.length+"人";
+    $("evBody").innerHTML=rows.length?rows.map(x=>
+      '<button class="rank-row '+gc+(x.rank<=8?" top8":"")+'" type="button" data-p="'+x.p.pi+'">'+
+      '<span class="rank-no">'+x.rank+'</span>'+
+      '<span><span class="rank-name">'+esc(x.p.name)+'</span>'+
+      '<span class="rank-sub">'+esc(PREF[x.p.pref])+" / "+esc(x.p.club)+" / "+esc(x.p.grade)+" "+esc(x.p.age)+'</span></span>'+
+      '<span class="rank-time"><b>'+esc(x.t)+'</b><span>No.'+x.p.no+'</span></span></button>').join(""):
+      '<div class="empty"><div class="empty-icon">&#128269;</div><strong>見つかりません</strong></div>';
+  }
+  sel.addEventListener("change",render);
+  $("evQ").addEventListener("input",render);
+  $("evBtn").addEventListener("click",render);
+  $("evBody").addEventListener("click",e2=>{const b=e2.target.closest("[data-p]");if(b)personSheet(people[+b.dataset.p]);});
+  render();
+})();
+
+/* ---------- リレー ---------- */
+(function(){
+  const sel=$("rlSelect");
+  let html="";
+  for(let d=1;d<=5;d++){
+    const list=D.relays.filter(e=>e.day===d);
+    if(!list.length)continue;
+    html+='<optgroup label="'+d+'日目 '+DAYLABEL[d]+'">';
+    list.forEach(e=>{html+='<option value="'+e.i+'">No.'+e.no+' '+esc(evName(e))+' ('+e.rows.length+'チーム)</option>';});
+    html+="</optgroup>";
+  }
+  sel.innerHTML=html;
+  function render(){
+    const e=D.relays[+sel.value];
+    const q=norm($("rlQ").value);
+    const gc=e.g===0?"m":"f";
+    $("rlTitle").textContent=evName(e);
+    $("rlMeta").innerHTML='<span class="badge">競技No.'+e.no+'</span>'+
+      '<span class="badge">'+e.day+'日目 '+DAYLABEL[e.day]+(e.time?" "+e.time+"ごろ〜":"")+'</span>'+
+      '<span class="badge">'+(e.heats||"?")+'組</span>'+
+      '<span class="badge wrap">泳者順は申込時のもの。当日変更されることがあります</span>';
+    let rows=e.rows.map((r,i)=>({no:r[0],pref:r[1],team:r[2],t:r[3],mem:r[4],gaku:r[5],kana:r[6],rank:i+1}));
+    if(q)rows=rows.filter(x=>(norm(x.team)+x.kana+norm(PREF[x.pref])+norm(x.mem.join(""))).indexOf(q)>=0);
+    $("rlCount").textContent=rows.length+" / "+e.rows.length+"チーム";
+    $("rlBody").innerHTML=rows.length?rows.map(x=>
+      '<div class="card '+gc+'"><div style="padding:14px">'+
+      '<div class="card-head"><div><div class="name" style="font-size:20px">'+esc(x.team)+'<span class="gtag '+gc+'">'+(e.g===0?"男子":"女子")+'</span></div>'+
+      '<div class="sub">'+esc(PREF[x.pref])+" / "+esc(x.gaku)+'</div></div>'+
+      '<span class="no-badge">申込'+x.rank+'位</span></div>'+
+      '<div class="badge-row"><span class="badge time">'+esc(x.t)+'</span></div>'+
+      '<div class="mem">'+x.mem.map((n,i)=>'<span>'+(i+1)+". "+esc(n)+"</span>").join("")+'</div>'+
+      '</div></div>').join(""):
+      '<div class="empty"><div class="empty-icon">&#128269;</div><strong>見つかりません</strong></div>';
+  }
+  sel.addEventListener("change",render);
+  $("rlQ").addEventListener("input",render);
+  $("rlBtn").addEventListener("click",render);
+  render();
+})();
+
+/* ---------- 県・クラブ ---------- */
+(function(){
+  let mode="ken", shown=40;
+  const clubs={};
+  people.forEach(p=>{ (clubs[p.ckey]=clubs[p.ckey]||{name:p.club.split("／")[0],pref:p.pref,men:0,women:0,list:[]}); const c=clubs[p.ckey];
+    c[p.g===0?"men":"women"]++; c.list.push(p); });
+  const clubArr=Object.keys(clubs).map(k=>({key:k,...clubs[k]})).sort((a,b)=>(b.men+b.women)-(a.men+a.women)||a.key.localeCompare(b.key,"ja"));
+  function render(reset){
+    if(reset)shown=40;
+    const q=norm($("tQ").value);
+    if(mode==="ken"){
+      let arr=PREF.map((n,i)=>({i:i,n:n,...(D.kens[i]||{people:0,men:0,women:0,ind:0,rel:0})}));
+      if(q)arr=arr.filter(x=>norm(x.n).indexOf(q)>=0);
+      arr.sort((a,b)=>b.people-a.people);
+      $("tTitle").textContent="都道府県";
+      $("tCount").textContent=arr.length+"県";
+      $("tBody").innerHTML='<div class="scroll-x"><table class="table"><thead><tr><th>都道府県</th><th class="num">選手</th><th class="num">男</th><th class="num">女</th><th class="num">個人</th><th class="num">リレー</th></tr></thead><tbody>'+
+        arr.map(x=>'<tr><td><button class="linkbtn" style="min-height:34px;border:0;padding:0;text-align:left;color:#a9d8ff" data-k="'+x.i+'">'+esc(x.n)+'</button></td>'+
+        '<td class="num">'+x.people+'</td><td class="num" style="color:var(--maleText)">'+x.men+'</td><td class="num" style="color:var(--femaleText)">'+x.women+'</td>'+
+        '<td class="num">'+x.ind+'</td><td class="num">'+x.rel+'</td></tr>').join("")+"</tbody></table></div>";
+      $("tMore").hidden=true;
+    }else{
+      let arr=clubArr;
+      if(q)arr=arr.filter(c=>norm(c.key).indexOf(q)>=0||norm(c.name).indexOf(q)>=0||norm(PREF[c.pref]).indexOf(q)>=0);
+      $("tTitle").textContent="クラブ";
+      $("tCount").textContent=arr.length.toLocaleString("ja-JP")+"クラブ";
+      $("tBody").innerHTML=arr.slice(0,shown).map(c=>
+        '<div class="card"><div style="padding:14px">'+
+        '<div class="card-head"><div><div class="name" style="font-size:19px">'+esc(c.name)+'</div>'+
+        '<div class="sub">'+esc(PREF[c.pref])+'</div></div><span class="no-badge">'+(c.men+c.women)+'人</span></div>'+
+        '<div class="badge-row">'+c.list.slice().sort((a,b)=>a.g-b.g).map(p=>'<button class="badge '+(p.g===0?"m":"f")+'" data-p="'+p.pi+'" style="border:0;cursor:pointer">'+esc(p.name)+'</button>').join("")+'</div>'+
+        '</div></div>').join("")||'<div class="empty"><div class="empty-icon">&#128269;</div><strong>見つかりません</strong></div>';
+      $("tMore").hidden=arr.length<=shown;
+      $("tMore").textContent="さらに表示(残り"+(arr.length-shown)+"クラブ)";
+    }
+  }
+  $("tQ").addEventListener("input",()=>render(true));
+  $("tBtn").addEventListener("click",()=>render(true));
+  $("tMore").addEventListener("click",()=>{shown+=40;render(false);});
+  $("tModeKen").addEventListener("click",()=>{mode="ken";$("tModeKen").classList.add("active");$("tModeClub").classList.remove("active");render(true);});
+  $("tModeClub").addEventListener("click",()=>{mode="club";$("tModeClub").classList.add("active");$("tModeKen").classList.remove("active");render(true);});
+  $("tBody").addEventListener("click",e=>{
+    const p=e.target.closest("[data-p]"); if(p){personSheet(people[+p.dataset.p]);return;}
+    const k=e.target.closest("[data-k]"); if(k){
+      document.querySelector('.tab[data-tab="search"]').click();
+      $("q").value=PREF[+k.dataset.k]; runSearch(true);
+    }
+  });
+  render(true);
+})();
+
+/* ---------- 日程・情報 ---------- */
+(function(){
+  let day=1;
+  const chips=$("dayChips");
+  chips.innerHTML=[1,2,3,4,5].map(d=>'<button class="chip'+(d===1?" active":"")+'" data-d="'+d+'">'+d+'日目 '+DAYLABEL[d]+'</button>').join("");
+  function render(){
+    const all=D.events.concat(D.relays).filter(e=>e.day===day);
+    const byNo={};
+    all.forEach(e=>{(byNo[e.no]=byNo[e.no]||[]).push(e);});
+    const nos=Object.keys(byNo).map(Number).sort((a,b)=>a-b);
+    $("progCount").textContent=nos.length+"レース";
+    $("progBody").innerHTML=nos.map(no=>{
+      const list=byNo[no].slice().sort((a,b)=>a.cls-b.cls);
+      const e0=list[0], gc=e0.g===0?"m":"f";
+      const total=list.reduce((s,e)=>s+e.rows.length,0);
+      const sub=list.map(e=>CLS[e.cls]+" "+e.rows.length+(e.style>=5?"チーム":"人")).join(" / ");
+      return '<div class="progrow '+gc+'"><span class="progno">'+no+'</span>'+
+        '<span class="progmain"><b>'+esc((e0.g===0?"男子":"女子")+" "+e0.dist+" "+STY[e0.style])+'</b><span>'+esc(sub)+'</span></span>'+
+        '<span class="progtime">'+(e0.time||"-")+'<small>'+(e0.heats||"?")+'組 / 計'+total+'</small></span></div>';
+    }).join("");
+  }
+  chips.addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;
+    chips.querySelectorAll(".chip").forEach(x=>x.classList.toggle("active",x===b));day=+b.dataset.d;render();});
+  render();
+  const arr=PREF.map((n,i)=>({n:n,...(D.kens[i]||{people:0,men:0,women:0,ind:0,rel:0})})).sort((a,b)=>b.people-a.people);
+  $("kenTable").innerHTML='<thead><tr><th>都道府県</th><th class="num">選手</th><th class="num">男</th><th class="num">女</th><th class="num">個人</th><th class="num">リレー</th></tr></thead><tbody>'+
+    arr.map(x=>'<tr><td>'+esc(x.n)+'</td><td class="num">'+x.people+'</td><td class="num" style="color:var(--maleText)">'+x.men+
+    '</td><td class="num" style="color:var(--femaleText)">'+x.women+'</td><td class="num">'+x.ind+'</td><td class="num">'+x.rel+'</td></tr>').join("")+"</tbody>";
+  $("infoFoot").textContent="7月31日の最終エントリーの内容をもとにしています。以後の訂正・棄権は反映されません。";
+})();
+})();
+</script>
+<script>
+// 閲覧カウンター: Abacus(無料API)に累計値を保存。1日1回だけ加算し、失敗時は非表示のまま。
+(function(){
+  const NS="gyojin600m1-jo-summer-2026-entry";
+  const isLocal=location.protocol==="file:"||/^(localhost|127\.|0\.0\.0\.0)/.test(location.hostname)||location.hostname==="";
+  const KEY=isLocal?"views-dev":"views";
+  const d=new Date();
+  const today=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  const stampKey="viewCounterStamp:"+NS+":"+KEY;
+  let counted=false;
+  try{counted=localStorage.getItem(stampKey)===today;}catch(e){}
+  fetch("https://abacus.jasoncameron.dev/"+(counted?"get":"hit")+"/"+NS+"/"+KEY)
+    .then(r=>{if(!r.ok)throw new Error();return r.json();})
+    .then(data=>{
+      if(typeof data.value!=="number")throw new Error();
+      document.getElementById("viewCount").textContent=data.value.toLocaleString("ja-JP");
+      document.getElementById("viewCounter").hidden=false;
+      if(!counted){try{localStorage.setItem(stampKey,today);}catch(e){}}
+    })
+    .catch(()=>{});
+})();
+</script>
+</body>
+</html>
