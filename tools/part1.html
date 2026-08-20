@@ -213,6 +213,13 @@ main{padding:16px}
 .progmain span{display:block;color:var(--muted);font-size:12px;margin-top:3px}
 .progtime{text-align:right;color:var(--accent);font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:15px}
 .progtime small{display:block;color:var(--faint);font-size:11px;font-weight:700;margin-top:2px}
+/* 鹿児島が出るレースの目印（日程タブ） */
+.progrow{border:0;font:inherit;color:inherit;cursor:pointer}
+.progrow.kago{background:linear-gradient(180deg,rgba(248,193,74,.14),rgba(14,35,65,.84));
+  box-shadow:inset 0 0 0 1px rgba(248,193,74,.5)}
+.progmain span.kagotag{display:block;margin-top:6px;color:#251900;background:var(--warn);border-radius:6px;padding:5px 9px;
+  font-size:12px;font-weight:900;line-height:1.4}
+.progmain span.kagotag small{display:block;color:#4a3403;font-size:11px;font-weight:800;margin-top:2px;overflow-wrap:anywhere}
 /* 組・レーンの大きい表示 */
 .lanebig{margin-top:10px;padding:8px 12px;border-radius:6px;background:linear-gradient(180deg,#0b93d8,#067ac5);
   color:#fff;font-size:18px;font-weight:900;letter-spacing:.02em;display:inline-block}

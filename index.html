@@ -213,6 +213,13 @@ main{padding:16px}
 .progmain span{display:block;color:var(--muted);font-size:12px;margin-top:3px}
 .progtime{text-align:right;color:var(--accent);font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:15px}
 .progtime small{display:block;color:var(--faint);font-size:11px;font-weight:700;margin-top:2px}
+/* 鹿児島が出るレースの目印（日程タブ） */
+.progrow{border:0;font:inherit;color:inherit;cursor:pointer}
+.progrow.kago{background:linear-gradient(180deg,rgba(248,193,74,.14),rgba(14,35,65,.84));
+  box-shadow:inset 0 0 0 1px rgba(248,193,74,.5)}
+.progmain span.kagotag{display:block;margin-top:6px;color:#251900;background:var(--warn);border-radius:6px;padding:5px 9px;
+  font-size:12px;font-weight:900;line-height:1.4}
+.progmain span.kagotag small{display:block;color:#4a3403;font-size:11px;font-weight:800;margin-top:2px;overflow-wrap:anywhere}
 /* 組・レーンの大きい表示 */
 .lanebig{margin-top:10px;padding:8px 12px;border-radius:6px;background:linear-gradient(180deg,#0b93d8,#067ac5);
   color:#fff;font-size:18px;font-weight:900;letter-spacing:.02em;display:inline-block}
@@ -354,10 +361,11 @@ button.ev-card:active{background:rgba(20,59,105,.9)}
     <section class="view" id="view-info">
       <div class="control-stack">
         <div class="chips" id="dayChips"></div>
+        <div class="chips" id="homeFilter"></div>
       </div>
       <div class="daybox" id="dayBox"></div>
       <div class="section-title"><span>プログラム（予選）</span><span id="progCount"></span></div>
-      <p class="foot" style="margin:-4px 0 12px">時刻は<b>予定</b>です。棄権が出ると早まるので、<b>30分前には会場にいる</b>つもりで見てください。</p>
+      <p class="foot" style="margin:-4px 0 12px">時刻は<b>予定</b>です。棄権が出ると早まるので、<b>30分前には会場にいる</b>つもりで見てください。<br><b style="color:var(--warn)">🔥 のついたレースに鹿児島の選手が出ます。</b>レースをタップすると、その種目の組・レーン一覧にとびます。</p>
       <div id="progBody"></div>
 
       <div class="info-block" style="margin-top:20px">
@@ -822,10 +830,31 @@ let evMode="heat";
 })();
 
 /* ---------- 日程・情報 ---------- */
+const HOME=PREF.indexOf("鹿児島");
+/* 競技No. → 地元(鹿児島)の出場者。日程をひと目で分かるようにするため。 */
+const homeByNo={};
+function addHome(no,name,extra){
+  const o=homeByNo[no]=homeByNo[no]||{n:0,names:[]};
+  o.n+=1; if(o.names.length<3)o.names.push(name+(extra||""));
+}
+D.events.forEach(e=>e.rows.forEach(r=>{
+  const p=people[r[0]];
+  if(p.pref===HOME)addHome(e.no,p.name,r[2]?"（"+r[2]+"組"+r[3]+"L）":"");
+}));
+D.relays.forEach(e=>e.rows.forEach(r=>{
+  if(r[1]===HOME)addHome(e.no,r[2],r[7]?"（"+r[7]+"組"+r[8]+"L）":"");
+}));
+const homeDayCount={};
+Object.keys(homeByNo).forEach(no=>{
+  const e=D.events.concat(D.relays).find(x=>x.no===+no);
+  if(e)homeDayCount[e.day]=(homeDayCount[e.day]||0)+1;
+});
+
 (function(){
-  let day=1;
+  let day=1, homeOnly=false;
   const chips=$("dayChips");
-  chips.innerHTML=[1,2,3,4,5].map(d=>'<button class="chip'+(d===1?" active":"")+'" data-d="'+d+'">'+d+'日目 '+DAYLABEL[d]+'</button>').join("");
+  chips.innerHTML=[1,2,3,4,5].map(d=>'<button class="chip'+(d===1?" active":"")+'" data-d="'+d+'">'+d+'日目 '+DAYLABEL[d]+
+    (homeDayCount[d]?'<b>鹿児島'+homeDayCount[d]+'</b>':"")+'</button>').join("");
   function renderDay(){
     const info=(D.days||[]).find(x=>x.d===day);
     if(!info){$("dayBox").innerHTML="";return;}
@@ -843,18 +872,32 @@ let evMode="heat";
     const all=D.events.concat(D.relays).filter(e=>e.day===day);
     const byNo={};
     all.forEach(e=>{(byNo[e.no]=byNo[e.no]||[]).push(e);});
-    const nos=Object.keys(byNo).map(Number).sort((a,b)=>a-b);
-    $("progCount").textContent=nos.length+"レース";
-    $("progBody").innerHTML=nos.map(no=>{
+    let nos=Object.keys(byNo).map(Number).sort((a,b)=>a-b);
+    const hit=nos.filter(n=>homeByNo[n]).length;
+    if(homeOnly)nos=nos.filter(n=>homeByNo[n]);
+    $("homeFilter").innerHTML='<button class="chip'+(homeOnly?" active":"")+'" id="homeOnlyBtn">🔥 鹿児島が出るレースだけ<b>'+hit+'</b></button>';
+    $("progCount").textContent=nos.length+"レース"+(hit?"／鹿児島 "+hit:"");
+    $("progBody").innerHTML=nos.length?nos.map(no=>{
       const list=byNo[no].slice().sort((a,b)=>a.cls-b.cls);
       const e0=list[0], gc=e0.g===0?"m":"f";
       const total=list.reduce((s,e)=>s+e.rows.length,0);
       const sub=list.map(e=>CLS[e.cls]+" "+e.rows.length+(e.style>=5?"チーム":"人")).join(" / ");
-      return '<div class="progrow '+gc+'"><span class="progno">'+no+'</span>'+
-        '<span class="progmain"><b>'+esc((e0.g===0?"男子":"女子")+" "+e0.dist+" "+STY[e0.style])+'</b><span>'+esc(sub)+'</span></span>'+
-        '<span class="progtime">'+(e0.time||"-")+'<small>'+(e0.heats||"?")+'組 / 計'+total+'</small></span></div>';
-    }).join("");
+      const hm=homeByNo[no];
+      return '<button type="button" class="progrow '+gc+(hm?" kago":"")+'" data-ev="'+e0.i+'" data-relay="'+(e0.style>=5?1:0)+'">'+
+        '<span class="progno">'+no+'</span>'+
+        '<span class="progmain"><b>'+esc((e0.g===0?"男子":"女子")+" "+e0.dist+" "+STY[e0.style])+'</b><span>'+esc(sub)+'</span>'+
+        (hm?'<span class="kagotag">🔥 鹿児島 '+hm.n+(e0.style>=5?"チーム":"人")+'<small>'+esc(hm.names.join("・"))+(hm.n>hm.names.length?" ほか":"")+'</small></span>':"")+
+        '</span>'+
+        '<span class="progtime">'+(e0.time||"-")+'<small>'+(e0.heats||"?")+'組 / 計'+total+'</small></span></button>';
+    }).join(""):'<div class="empty"><div class="empty-icon">🏊</div><strong>この日は鹿児島の出番はありません</strong></div>';
+    $("homeOnlyBtn").addEventListener("click",()=>{homeOnly=!homeOnly;render();});
   }
+  $("progBody").addEventListener("click",e=>{
+    const b=e.target.closest("[data-ev]"); if(!b)return;
+    const i=+b.dataset.ev;
+    if(b.dataset.relay==="1"){ if(gotoRelay)gotoRelay(i,null); }
+    else if(gotoEvent)gotoEvent(i,null);
+  });
   chips.addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;
     chips.querySelectorAll(".chip").forEach(x=>x.classList.toggle("active",x===b));day=+b.dataset.d;render();});
   render();
