@@ -89,14 +89,14 @@ function heatText(e){
 }
 D.events.forEach((e,i)=>{
   e.i=i; e.label="No."+e.no+" "+evName(e);
-  e.rows.forEach((r,ri)=>{ people[r[0]].ev.push({e:e,rank:ri+1,n:e.rows.length,t:r[1]}); });
+  e.rows.forEach((r,ri)=>{ people[r[0]].ev.push({e:e,rank:ri+1,n:e.rows.length,t:r[1],h:r[2],l:r[3]}); });
 });
 D.relays.forEach((e,i)=>{
   e.i=i; e.label="No."+e.no+" "+evName(e);
   e.rows.forEach((r,ri)=>{
     r[4].forEach((nm,oi)=>{
       const p=byKey.get(r[1]+" "+norm(nm));
-      if(p)p.rel.push({e:e,team:r[2],rank:ri+1,n:e.rows.length,t:r[3],order:oi+1});
+      if(p)p.rel.push({e:e,team:r[2],rank:ri+1,n:e.rows.length,t:r[3],order:oi+1,h:r[7],l:r[8]});
     });
   });
 });
@@ -155,6 +155,7 @@ function personSheet(p){
         '<div class="ev-head"><div class="ev-name">'+esc(evName(e))+'</div>'+
         '<span class="badge">競技No.'+e.no+'</span></div>'+
         '<div class="ev-sched">'+DAYLABEL[e.day]+(e.time?" "+e.time+"ごろ（予定）":"")+' / '+heatText(e)+'</div>'+
+        (x.h?'<div class="lanebig">'+x.h+'組 '+x.l+'レーン</div>':"")+
         '<div class="ev-grid"><div><span>Entry Time</span><b>'+esc(x.t)+'</b></div>'+
         '<div><span>Entry 順位</span><b>'+x.rank+' / '+x.n+'</b></div></div>'+
         '<span class="jump">この種目の一覧を見る →</span></button>';
@@ -167,6 +168,7 @@ function personSheet(p){
         '<div class="ev-head"><div class="ev-name">'+esc(evName(x.e))+'</div>'+
         '<span class="badge">競技No.'+x.e.no+'</span></div>'+
         '<div class="ev-sched">'+DAYLABEL[x.e.day]+(x.e.time?" "+x.e.time+"ごろ（予定）":"")+' / '+esc(x.team)+'</div>'+
+        (x.h?'<div class="lanebig">'+x.h+'組 '+x.l+'レーン</div>':"")+
         '<div class="ev-grid"><div><span>Entry Time</span><b>'+esc(x.t)+'</b></div>'+
         '<div><span>Entry の泳者順</span><b>第'+x.order+'泳者</b></div></div>'+
         '<span class="jump">この種目の一覧を見る →</span></button>';
@@ -183,7 +185,8 @@ function personCard(p){
   let badges="";
   p.ev.slice(0,6).forEach(x=>{
     const cl=x.rank===1?"badge accent":(x.rank<=8?"badge warn":"badge");
-    badges+='<span class="'+cl+' wrap">'+esc(CLS[x.e.cls]+" "+x.e.dist+STY[x.e.style])+" "+esc(x.t)+' <b class="ent">Entry '+x.rank+'位</b></span>';
+    badges+='<span class="'+cl+' wrap">'+esc(CLS[x.e.cls]+" "+x.e.dist+STY[x.e.style])+" "+esc(x.t)+
+      (x.h?' <b class="ent">'+x.h+'組'+x.l+'レーン</b>':' <b class="ent">Entry '+x.rank+'位</b>')+'</span>';
   });
   p.rel.slice(0,4).forEach(x=>{ badges+='<span class="badge wrap">'+esc(CLS[x.e.cls]+" "+x.e.dist+STY[x.e.style])+'</span>'; });
   if(!badges)badges='<span class="badge">リレー要員</span>';
@@ -243,6 +246,7 @@ document.querySelectorAll('[data-filter-group="gender"] .pill').forEach(b=>b.add
 runSearch(true);
 
 /* ---------- 種目別 ---------- */
+let evMode="heat";
 (function(){
   const sel=$("evSelect");
   let html="";
@@ -261,21 +265,41 @@ runSearch(true);
     $("evTitle").textContent=evName(e);
     $("evMeta").innerHTML='<span class="badge">競技No.'+e.no+'</span>'+
       '<span class="badge">'+e.day+'日目 '+DAYLABEL[e.day]+(e.time?" "+e.time+"ごろ（予定）":"")+'</span>'+
-      '<span class="badge">Entry順（申込タイムの速い順）</span>'+
       '<span class="badge wrap">'+heatText(e)+' / 10レーン</span>'+
-      '<span class="badge wrap">組・レーンは大会当日の発表です</span>'+
       (e.mix>1?'<span class="badge wrap">この競技No.は 13〜14歳・15〜16歳・ＣＳ が一緒に予選を泳ぎ、決勝は区分ごとに分かれます</span>':"");
-    let rows=e.rows.map((r,i)=>({p:people[r[0]],t:r[1],rank:i+1}));
+    let rows=e.rows.map((r,i)=>({p:people[r[0]],t:r[1],rank:i+1,h:r[2],l:r[3]}));
     if(q)rows=rows.filter(x=>x.p.q.indexOf(q)>=0);
     $("evCount").textContent=rows.length+" / "+e.rows.length+"人";
-    $("evBody").innerHTML=rows.length?rows.map(x=>
-      '<button class="rank-row '+gc+(x.rank<=8?" top8":"")+'" type="button" data-p="'+x.p.pi+'">'+
-      '<span class="rank-no">'+x.rank+'</span>'+
-      '<span><span class="rank-name">'+esc(x.p.name)+'</span>'+
-      '<span class="rank-sub">'+esc(PREF[x.p.pref])+" / "+esc(x.p.club)+" / "+esc(x.p.grade)+" "+esc(x.p.age)+'</span></span>'+
-      '<span class="rank-time"><b>'+esc(x.t)+'</b><span>No.'+x.p.no+'</span></span></button>').join(""):
-      '<div class="empty"><div class="empty-icon">&#128269;</div><strong>見つかりません</strong></div>';
+    const hasLane=e.rows.some(r=>r[2]);
+    $("modeRow").hidden=!hasLane;
+    if(!rows.length){
+      $("evBody").innerHTML='<div class="empty"><div class="empty-icon">&#128269;</div><strong>見つかりません</strong></div>';
+      return;
+    }
+    if(evMode==="heat"&&hasLane){
+      const byh={};
+      rows.forEach(x=>{(byh[x.h]=byh[x.h]||[]).push(x);});
+      $("evBody").className="";
+      $("evBody").innerHTML=Object.keys(byh).map(Number).sort((a,b)=>a-b).map(h=>{
+        const list=byh[h].slice().sort((a,b)=>a.l-b.l);
+        return '<div class="heat-block '+gc+'"><div class="heat-head"><span>'+h+'組</span><span>'+list.length+'人</span></div>'+
+          list.map(x=>'<div class="heat-row" data-p="'+x.p.pi+'"><span class="lane-no">'+x.l+'</span>'+
+          '<span><b>'+esc(x.p.name)+'</b><br><span class="rank-sub">'+esc(PREF[x.p.pref])+" / "+esc(x.p.club)+'</span></span>'+
+          '<span class="heat-time">'+esc(x.t)+'</span></div>').join("")+'</div>';
+      }).join("");
+    }else{
+      $("evBody").className="rank-list";
+      $("evBody").innerHTML=rows.map(x=>
+        '<button class="rank-row '+gc+(x.rank<=8?" top8":"")+'" type="button" data-p="'+x.p.pi+'">'+
+        '<span class="rank-no">'+x.rank+'</span>'+
+        '<span><span class="rank-name">'+esc(x.p.name)+'</span>'+
+        '<span class="rank-sub">'+esc(PREF[x.p.pref])+" / "+esc(x.p.club)+" / "+esc(x.p.grade)+" "+esc(x.p.age)+
+        (x.h?' ／ <b style="color:var(--accent)">'+x.h+'組'+x.l+'レーン</b>':"")+'</span></span>'+
+        '<span class="rank-time"><b>'+esc(x.t)+'</b><span>No.'+x.p.no+'</span></span></button>').join("");
+    }
   }
+  $("modeRank").addEventListener("click",()=>{evMode="rank";$("modeRank").classList.add("active");$("modeHeat").classList.remove("active");render();});
+  $("modeHeat").addEventListener("click",()=>{evMode="heat";$("modeHeat").classList.add("active");$("modeRank").classList.remove("active");render();});
   sel.addEventListener("change",render);
   $("evQ").addEventListener("input",render);
   $("evBtn").addEventListener("click",render);
@@ -311,15 +335,15 @@ runSearch(true);
       '<span class="badge">'+e.day+'日目 '+DAYLABEL[e.day]+(e.time?" "+e.time+"ごろ（予定）":"")+'</span>'+
       '<span class="badge">'+(e.heats||"?")+'組</span>'+
       '<span class="badge wrap">泳者順はEntry時のもの。当日変更されることがあります</span>';
-    let rows=e.rows.map((r,i)=>({no:r[0],pref:r[1],team:r[2],t:r[3],mem:r[4],gaku:r[5],kana:r[6],rank:i+1}));
+    let rows=e.rows.map((r,i)=>({no:r[0],pref:r[1],team:r[2],t:r[3],mem:r[4],gaku:r[5],kana:r[6],rank:i+1,h:r[7],l:r[8]}));
     if(q)rows=rows.filter(x=>(norm(x.team)+x.kana+norm(PREF[x.pref])+norm(x.mem.join(""))).indexOf(q)>=0);
     $("rlCount").textContent=rows.length+" / "+e.rows.length+"チーム";
     $("rlBody").innerHTML=rows.length?rows.map(x=>
       '<div class="card '+gc+'" data-rank="'+x.rank+'"><div style="padding:14px">'+
       '<div class="card-head"><div><div class="name" style="font-size:20px">'+esc(x.team)+'<span class="gtag '+gc+'">'+(e.g===0?"男子":"女子")+'</span></div>'+
       '<div class="sub">'+esc(PREF[x.pref])+" / "+esc(x.gaku)+'</div></div>'+
-      '<span class="no-badge">Entry '+x.rank+'位</span></div>'+
-      '<div class="badge-row"><span class="badge time">'+esc(x.t)+'</span></div>'+
+      '<span class="no-badge">'+(x.h?x.h+'組 '+x.l+'レーン':'Entry '+x.rank+'位')+'</span></div>'+
+      '<div class="badge-row"><span class="badge time">'+esc(x.t)+'</span><span class="badge">Entry '+x.rank+'位</span></div>'+
       '<div class="mem">'+x.mem.map((n,i)=>'<span>'+(i+1)+". "+esc(n)+"</span>").join("")+'</div>'+
       '</div></div>').join(""):
       '<div class="empty"><div class="empty-icon">&#128269;</div><strong>見つかりません</strong></div>';

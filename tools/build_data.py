@@ -3,6 +3,12 @@ import json, re, math, collections, unicodedata
 ev = json.load(open("jo_raw.json"))
 nit = json.load(open("nittei.json"))        # 8/14「競技日程a.pdf」＝組数はこちらを使う
 an = json.load(open("nittei_an.json"))      # 7/31「競技日程案」(監督者会議資料p36-37)＝時刻はこちら
+import os
+SL = json.load(open("startlist.json", encoding="utf-8")) if os.path.exists("startlist.json") else {}
+# SEIKOのスタートリスト(組・レーン)。個人は登録No、リレーはチーム番号で突き合わせる。
+slmap = {}
+for k, v in SL.items():
+    slmap[int(k)] = {r["no"]: (r["heat"], r["lane"]) for r in v["rows"]}
 # 8/14版は時刻欄が半分ほど空で、埋まっている値も前後する(No.4→5 で時刻が戻る等)。
 # 案のほうは 開始時刻＋所要時間＝次の開始時刻 が全5日で崩れない（逆転0）ので、時刻は案を採る。
 # 大会情報ページの但し書きも「時間の変更は無し」。
@@ -63,19 +69,23 @@ for e in ev:
             "g": g, "cls": CLS.index(cls), "dist": dist, "style": STY.index(style), "page": page}
     if e["header"][0] == "選手番号":
         rows = []
+        hl = slmap.get(no, {})
         for r in e["rows"]:
             sno, pref, name, kana, club, ckana, grade, age, et = r[:9]
             i = sw_i(sno, name, kana, pref, club, ckana, grade, age, head[:2])
-            rows.append([i, et])
+            h, l = hl.get(int(sno), (None, None))
+            rows.append([i, et, h, l])
         rows.sort(key=lambda x: t2s(x[1]))
         base["rows"] = rows
         events.append(base)
     else:
         rows = []
+        hl = slmap.get(no, {})
         for r in e["rows"]:
             tno, pref, team, tkana, et, order, gaku = r[:7]
             mem = [x.strip().replace("　", " ") for x in order.split("・") if x.strip()]
-            rows.append([int(tno), pref_i(pref), team, et, mem, gaku, kana_hira(tkana)])
+            h, l = hl.get(int(tno), (None, None))
+            rows.append([int(tno), pref_i(pref), team, et, mem, gaku, kana_hira(tkana), h, l])
         rows.sort(key=lambda x: t2s(x[3]))
         base["rows"] = rows
         relays.append(base)
@@ -95,6 +105,7 @@ relays.sort(key=lambda x: x["no"])
 
 # リレー要員(個人エントリー無し)
 indpn = {(swim[i][3], swim[i][1].replace(" ", "").replace("　", "")) for i in range(len(swim))}
+HAS_LANES = bool(slmap)
 staff_out = []
 for d in staff:
     key = (pref_i(d["pref"]), d["name"].replace(" ", "").replace("　", ""))
@@ -108,7 +119,7 @@ for i, s in enumerate(swim):
 for s in staff_out:
     k = kens[s[2]]; k["people"] += 1; k["men" if s[6] == 0 else "women"] += 1
 for e in events:
-    for i, t in e["rows"]: kens[swim[i][3]]["ind"] += 1
+    for r in e["rows"]: kens[swim[r[0]][3]]["ind"] += 1
 for e in relays:
     for r in e["rows"]: kens[r[1]]["rel"] += 1
 
@@ -134,6 +145,7 @@ DAYS = [
 
 data = {
     "days": DAYS,
+    "lanes": HAS_LANES,
     "meet": {
         "name": "第49回 全国JOCジュニアオリンピックカップ夏季水泳競技大会",
         "short": "夏季JO(東京)",
