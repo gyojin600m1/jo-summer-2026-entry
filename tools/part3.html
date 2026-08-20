@@ -154,7 +154,7 @@ function personSheet(p){
       h+='<button type="button" class="ev-card '+gc+'" data-jump-ev="'+e.i+'" data-jump-p="'+p.pi+'">'+
         '<div class="ev-head"><div class="ev-name">'+esc(evName(e))+'</div>'+
         '<span class="badge">競技No.'+e.no+'</span></div>'+
-        '<div class="ev-sched">'+DAYLABEL[e.day]+(e.time?" "+e.time+"ごろ〜":"")+' / '+heatText(e)+'</div>'+
+        '<div class="ev-sched">'+DAYLABEL[e.day]+(e.time?" "+e.time+"ごろ（予定）":"")+' / '+heatText(e)+'</div>'+
         '<div class="ev-grid"><div><span>Entry Time</span><b>'+esc(x.t)+'</b></div>'+
         '<div><span>Entry 順位</span><b>'+x.rank+' / '+x.n+'</b></div></div>'+
         '<span class="jump">この種目の一覧を見る →</span></button>';
@@ -166,7 +166,7 @@ function personSheet(p){
       h+='<button type="button" class="ev-card '+gc+'" data-jump-rl="'+x.e.i+'" data-jump-team="'+x.rank+'">'+
         '<div class="ev-head"><div class="ev-name">'+esc(evName(x.e))+'</div>'+
         '<span class="badge">競技No.'+x.e.no+'</span></div>'+
-        '<div class="ev-sched">'+DAYLABEL[x.e.day]+(x.e.time?" "+x.e.time+"ごろ〜":"")+' / '+esc(x.team)+'</div>'+
+        '<div class="ev-sched">'+DAYLABEL[x.e.day]+(x.e.time?" "+x.e.time+"ごろ（予定）":"")+' / '+esc(x.team)+'</div>'+
         '<div class="ev-grid"><div><span>Entry Time</span><b>'+esc(x.t)+'</b></div>'+
         '<div><span>Entry の泳者順</span><b>第'+x.order+'泳者</b></div></div>'+
         '<span class="jump">この種目の一覧を見る →</span></button>';
@@ -260,7 +260,7 @@ runSearch(true);
     const gc=e.g===0?"m":"f";
     $("evTitle").textContent=evName(e);
     $("evMeta").innerHTML='<span class="badge">競技No.'+e.no+'</span>'+
-      '<span class="badge">'+e.day+'日目 '+DAYLABEL[e.day]+(e.time?" "+e.time+"ごろ〜":"")+'</span>'+
+      '<span class="badge">'+e.day+'日目 '+DAYLABEL[e.day]+(e.time?" "+e.time+"ごろ（予定）":"")+'</span>'+
       '<span class="badge">Entry順（申込タイムの速い順）</span>'+
       '<span class="badge wrap">'+heatText(e)+' / 10レーン</span>'+
       '<span class="badge wrap">組・レーンは大会当日の発表です</span>'+
@@ -308,7 +308,7 @@ runSearch(true);
     const gc=e.g===0?"m":"f";
     $("rlTitle").textContent=evName(e);
     $("rlMeta").innerHTML='<span class="badge">競技No.'+e.no+'</span>'+
-      '<span class="badge">'+e.day+'日目 '+DAYLABEL[e.day]+(e.time?" "+e.time+"ごろ〜":"")+'</span>'+
+      '<span class="badge">'+e.day+'日目 '+DAYLABEL[e.day]+(e.time?" "+e.time+"ごろ（予定）":"")+'</span>'+
       '<span class="badge">'+(e.heats||"?")+'組</span>'+
       '<span class="badge wrap">泳者順はEntry時のもの。当日変更されることがあります</span>';
     let rows=e.rows.map((r,i)=>({no:r[0],pref:r[1],team:r[2],t:r[3],mem:r[4],gaku:r[5],kana:r[6],rank:i+1}));
@@ -393,7 +393,20 @@ runSearch(true);
   let day=1;
   const chips=$("dayChips");
   chips.innerHTML=[1,2,3,4,5].map(d=>'<button class="chip'+(d===1?" active":"")+'" data-d="'+d+'">'+d+'日目 '+DAYLABEL[d]+'</button>').join("");
+  function renderDay(){
+    const info=(D.days||[]).find(x=>x.d===day);
+    if(!info){$("dayBox").innerHTML="";return;}
+    const row=(t,label,sub)=>'<div class="tlrow"><b>'+t+'</b><span>'+label+(sub?'<small>'+sub+'</small>':"")+'</span></div>';
+    $("dayBox").innerHTML='<h4>'+day+'日目 '+esc(info.date)+' の流れ</h4><div class="tl">'+
+      row(info.open,"開門","朝の練習は予選開始15分前（8:45）まで")+
+      row(info.pre,"予選 開始","終了予定 "+info.preEnd)+
+      row(info.fin,"決勝・B決勝 開始","終了予定 "+info.finEnd)+
+      row(info.close,"閉門","")+
+      '</div>'+(info.note?'<div class="daynote">'+esc(info.note)+'</div>':"")+
+      '<p class="foot" style="margin:10px 0 0">開門・予選開始・決勝開始・閉門は二次要項の時刻です。</p>';
+  }
   function render(){
+    renderDay();
     const all=D.events.concat(D.relays).filter(e=>e.day===day);
     const byNo={};
     all.forEach(e=>{(byNo[e.no]=byNo[e.no]||[]).push(e);});

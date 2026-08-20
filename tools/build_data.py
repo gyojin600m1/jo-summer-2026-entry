@@ -1,7 +1,11 @@
 import json, re, math, collections, unicodedata
 
 ev = json.load(open("jo_raw.json"))
-nit = json.load(open("nittei.json"))
+nit = json.load(open("nittei.json"))        # 8/14「競技日程a.pdf」＝組数はこちらを使う
+an = json.load(open("nittei_an.json"))      # 7/31「競技日程案」(監督者会議資料p36-37)＝時刻はこちら
+# 8/14版は時刻欄が半分ほど空で、埋まっている値も前後する(No.4→5 で時刻が戻る等)。
+# 案のほうは 開始時刻＋所要時間＝次の開始時刻 が全5日で崩れない（逆転0）ので、時刻は案を採る。
+# 大会情報ページの但し書きも「時間の変更は無し」。
 p2n = json.load(open("page2no.json"))
 staff = [d for d in json.load(open("relaystaff.json")) if d["name"]]
 
@@ -50,10 +54,12 @@ for e in ev:
     m = re.match(r"^(男子|女子)\s+(\d+m)\s+(\S+)\s+予選\s+(\S+)$", head)
     dist, style, cls = m.group(2), m.group(3), m.group(4)
     info = nit.get(str(no), {})
+    ani = an.get(str(no), {})
     heats = info.get("heats")
     if heats is None:
         mm = re.search(r"（\s*(\d+)\s*\)", info.get("raw", "")); heats = int(mm.group(1)) if mm else None
-    base = {"no": no, "day": DAY(no), "time": info.get("time"), "heats": heats,
+    base = {"no": no, "day": DAY(no), "time": ani.get("time") or info.get("time"),
+            "dur": ani.get("dur"), "heats": heats,
             "g": g, "cls": CLS.index(cls), "dist": dist, "style": STY.index(style), "page": page}
     if e["header"][0] == "選手番号":
         rows = []
@@ -114,7 +120,20 @@ for s in staff_out: clubs[clubkey(s[3])] += 1
 for s in swim: s.append(clubkey(s[4]))
 for s in staff_out: s.append(clubkey(s[3]))
 
+# 二次要項(2026/7/31)の「３ 日程」より。ここは確定値。
+DAYS = [
+ {"d":1,"date":"8月22日(土)","open":"7:15","pre":"9:00","preEnd":"13:25","fin":"14:15","finEnd":"18:00","close":"18:30",
+  "note":"アスリート委員会トークショー 13:30〜／開始式 14:00〜"},
+ {"d":2,"date":"8月23日(日)","open":"7:15","pre":"9:00","preEnd":"13:40","fin":"14:10","finEnd":"18:55","close":"19:25",
+  "note":"12歳以下 総合表彰 17:45〜"},
+ {"d":3,"date":"8月24日(月)","open":"7:15","pre":"9:00","preEnd":"13:30","fin":"14:00","finEnd":"18:00","close":"18:30","note":""},
+ {"d":4,"date":"8月25日(火)","open":"7:15","pre":"9:00","preEnd":"14:50","fin":"15:20","finEnd":"19:15","close":"19:45","note":""},
+ {"d":5,"date":"8月26日(水)","open":"7:15","pre":"9:00","preEnd":"12:50","fin":"13:20","finEnd":"16:00","close":"16:30",
+  "note":"閉会式 16:10〜"},
+]
+
 data = {
+    "days": DAYS,
     "meet": {
         "name": "第49回 全国JOCジュニアオリンピックカップ夏季水泳競技大会",
         "short": "夏季JO(東京)",
