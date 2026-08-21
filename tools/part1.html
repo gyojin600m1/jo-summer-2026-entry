@@ -220,6 +220,24 @@ main{padding:16px}
 .chip .kmark{margin-right:4px}
 .rank-row.kago,.card.kago{box-shadow:inset 0 0 0 1px rgba(248,193,74,.55)}
 .heat-row.kago{background:rgba(248,193,74,.10)}
+/* 応援リストの印（★）。緑はこの用途だけ。鹿=黄色い四角、★=緑の星で形も色も変える */
+.fmark{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:999px;margin-right:6px;
+  background:var(--ok);color:#04281c;font-size:13px;font-weight:900;line-height:1;vertical-align:middle;flex:0 0 auto}
+.chip .fmark{margin-right:4px}
+.chip b.favnum{color:var(--ok);margin-left:6px}
+.card.fav,.rank-row.fav{box-shadow:inset 0 0 0 2px rgba(67,211,158,.65)}
+.heat-row.fav{background:rgba(67,211,158,.12)}
+.favtoggle{width:100%;min-height:52px;margin-bottom:14px;border:1px solid #2a598c;border-radius:var(--radius);
+  background:#0d2444;color:#a9d8ff;font-size:15px;font-weight:850}
+.favtoggle.on{background:var(--ok);border-color:var(--ok);color:#04281c}
+.progmain span.favtag{display:block;margin-top:6px;color:#04281c;background:var(--ok);border-radius:6px;padding:5px 9px;
+  font-size:12px;font-weight:900;line-height:1.4}
+.progmain span.favtag small{display:block;color:#0a3d2c;font-size:11px;font-weight:800;margin-top:2px;overflow-wrap:anywhere}
+.progrow.fav{box-shadow:inset 0 0 0 1px rgba(67,211,158,.55)}
+.progrow.kago.fav{box-shadow:inset 0 0 0 1px rgba(248,193,74,.5),inset 0 0 0 3px rgba(67,211,158,.35)}
+/* 色つきタグの中では印を反転（黄色地に黄色い印だと見えないため） */
+.progmain span.kagotag .kmark{background:#251900;color:var(--warn)}
+.progmain span.favtag .fmark{background:#04281c;color:var(--ok)}
 /* 鹿児島が出るレースの目印（日程タブ） */
 .progrow{border:0;font:inherit;color:inherit;cursor:pointer}
 .progrow.kago{background:linear-gradient(180deg,rgba(248,193,74,.14),rgba(14,35,65,.84));

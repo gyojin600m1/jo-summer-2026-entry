@@ -7,6 +7,14 @@ const PREF=D.prefs, CLS=D.cls, STY=D.sty;
 const HOME=PREF.indexOf("鹿児島");            // 地元。ここだけ特別に印をつける
 const KMARK='<span class="kmark">鹿</span>';   // 鹿児島の印（塗りバッジ。本文の「鹿」と混ざらないように）
 const kmarkIf=on=>on?KMARK:"";
+/* 応援リスト。この端末にだけ保存する（サーバーは無いので端末ごと） */
+const FAVKEY="jo2026:fav";
+let FAV=new Set();
+try{ FAV=new Set(JSON.parse(localStorage.getItem(FAVKEY)||"[]")); }catch(e){}
+function saveFav(){ try{ localStorage.setItem(FAVKEY,JSON.stringify([...FAV])); }catch(e){} }
+const isFav=p=>FAV.has(p.no);
+const FMARK='<span class="fmark">★</span>';
+const fmarkIf=on=>on?FMARK:"";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const DAYLABEL=["","8/22(土)","8/23(日)","8/24(月)","8/25(火)","8/26(水)"];
@@ -125,7 +133,13 @@ document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{
 }));
 
 /* ---------- 種目へジャンプ（個人カード→種目別/リレータブ） ---------- */
-let gotoEvent=null, gotoRelay=null;
+let gotoEvent=null, gotoRelay=null, rerenderEvent=null, rerenderRelay=null, rerenderProg=null;
+function refreshAll(){
+  try{ runSearch(false); }catch(e){}
+  if(rerenderEvent)rerenderEvent();
+  if(rerenderRelay)rerenderRelay();
+  if(rerenderProg)rerenderProg();
+}
 function flashRow(el){
   if(!el)return;
   el.scrollIntoView({block:"center"});
@@ -139,6 +153,14 @@ function closeSheet(){detail.classList.remove("open");document.body.style.overfl
 function openSheet(html){sheet.innerHTML=html;detail.classList.add("open");document.body.style.overflow="hidden";sheet.scrollTop=0;
   const b=sheet.querySelector(".close-btn"); if(b)b.addEventListener("click",closeSheet);}
 sheet.addEventListener("click",e=>{
+  const t=e.target.closest("[data-favtoggle]"); if(!t)return;
+  const no=+t.dataset.favtoggle;
+  if(FAV.has(no))FAV.delete(no); else FAV.add(no);
+  saveFav();
+  const p=people.find(x=>x.no===no); if(p)personSheet(p);
+  refreshAll();
+});
+sheet.addEventListener("click",e=>{
   const ev=e.target.closest("[data-jump-ev]");
   if(ev&&gotoEvent){closeSheet();gotoEvent(+ev.dataset.jumpEv,+ev.dataset.jumpP);return;}
   const rl=e.target.closest("[data-jump-rl]");
@@ -147,9 +169,11 @@ sheet.addEventListener("click",e=>{
 
 function personSheet(p){
   const gc=p.g===0?"m":"f";
-  let h='<div class="sheet-head"><div><div class="name">'+kmarkIf(p.pref===HOME)+esc(p.name)+'<span class="gtag '+gc+'">'+(p.g===0?"男子":"女子")+'</span></div>'+
+  let h='<div class="sheet-head"><div><div class="name">'+fmarkIf(isFav(p))+kmarkIf(p.pref===HOME)+esc(p.name)+'<span class="gtag '+gc+'">'+(p.g===0?"男子":"女子")+'</span></div>'+
     '<div class="sub">'+esc(p.grade)+" "+esc(p.age)+" / "+esc(PREF[p.pref])+" / "+esc(p.club)+'</div></div>'+
-    '<button class="close-btn" type="button">&times;</button></div>';
+    '<button class="close-btn" type="button">&times;</button></div>'+
+    '<button class="favtoggle'+(isFav(p)?" on":"")+'" type="button" data-favtoggle="'+p.no+'">'+
+      (isFav(p)?"★ 応援中（タップで外す）":"☆ この選手を応援リストに入れる")+'</button>';
   if(p.ev.length){
     h+='<div class="gblock '+gc+'">個人種目 <span>'+p.ev.length+'種目</span></div>';
     p.ev.forEach(x=>{
@@ -182,7 +206,7 @@ function personSheet(p){
 }
 
 /* ---------- 選手検索 ---------- */
-let fGender="all", fCls=null, fKen=null, qShown=60;
+let fGender="all", fCls=null, fKen=null, qShown=60, favOnly=false;
 function personCard(p){
   const gc=p.g===0?"m":"f";
   let badges="";
@@ -192,8 +216,8 @@ function personCard(p){
   });
   p.rel.slice(0,4).forEach(x=>{ badges+='<span class="badge wrap">'+esc(CLS[x.e.cls]+" "+x.e.dist+STY[x.e.style])+'</span>'; });
   if(!badges)badges='<span class="badge">リレー要員</span>';
-  return '<div class="card '+gc+'"><button class="card-btn" type="button" data-p="'+p.pi+'">'+
-    '<div class="card-head"><div><div class="name">'+kmarkIf(p.pref===HOME)+esc(p.name)+'<span class="gtag '+gc+'">'+(p.g===0?"男子":"女子")+'</span></div>'+
+  return '<div class="card '+gc+(isFav(p)?" fav":"")+'"><button class="card-btn" type="button" data-p="'+p.pi+'">'+
+    '<div class="card-head"><div><div class="name">'+fmarkIf(isFav(p))+kmarkIf(p.pref===HOME)+esc(p.name)+'<span class="gtag '+gc+'">'+(p.g===0?"男子":"女子")+'</span></div>'+
     '<div class="sub">'+esc(p.grade)+" "+esc(p.age)+" / "+esc(PREF[p.pref])+" / "+esc(p.club)+'</div></div>'+
     '<span class="no-badge">No.'+p.no+'</span></div>'+
     '<div class="badge-row">'+badges+'</div></button></div>';
@@ -205,6 +229,10 @@ function runSearch(reset){
   if(fGender!=="all")list=list.filter(p=>p.g===+fGender);
   if(fCls!==null)list=list.filter(p=>p.clsSet.has(fCls));
   if(fKen!==null)list=list.filter(p=>p.pref===fKen);
+  if(favOnly)list=list.filter(isFav);
+  $("favFilter").innerHTML='<button class="chip'+(favOnly?" active":"")+'" id="favOnlyBtn">★ 応援リストだけ<b>'+FAV.size+'</b></button>'+
+    (FAV.size?"":'<span class="foot" style="align-self:center">選手をタップ →「☆ 応援リストに入れる」で登録できます</span>');
+  const fb=$("favOnlyBtn"); if(fb)fb.addEventListener("click",()=>{favOnly=!favOnly;runSearch(true);});
   if(q){
     const hira=isHira(q);
     list=list.filter(p=>p.q.indexOf(q)>=0||(hira&&p.guessKana&&(kanaMatch(p.name,q)||kanaMatch(p.club,q))));
@@ -285,16 +313,16 @@ let evMode="heat";
       $("evBody").innerHTML=Object.keys(byh).map(Number).sort((a,b)=>a-b).map(h=>{
         const list=byh[h].slice().sort((a,b)=>a.l-b.l);
         return '<div class="heat-block '+gc+'"><div class="heat-head"><span>'+h+'組</span><span>'+list.length+'人</span></div>'+
-          list.map(x=>'<div class="heat-row'+(x.p.pref===HOME?" kago":"")+'" data-p="'+x.p.pi+'"><span class="lane-no">'+x.l+'</span>'+
-          '<span><b>'+kmarkIf(x.p.pref===HOME)+esc(x.p.name)+'</b><br><span class="rank-sub">'+esc(PREF[x.p.pref])+" / "+esc(x.p.club)+'</span></span>'+
+          list.map(x=>'<div class="heat-row'+(x.p.pref===HOME?" kago":"")+(isFav(x.p)?" fav":"")+'" data-p="'+x.p.pi+'"><span class="lane-no">'+x.l+'</span>'+
+          '<span><b>'+fmarkIf(isFav(x.p))+kmarkIf(x.p.pref===HOME)+esc(x.p.name)+'</b><br><span class="rank-sub">'+esc(PREF[x.p.pref])+" / "+esc(x.p.club)+'</span></span>'+
           '<span class="heat-time">'+esc(x.t)+'</span></div>').join("")+'</div>';
       }).join("");
     }else{
       $("evBody").className="rank-list";
       $("evBody").innerHTML=rows.map(x=>
-        '<button class="rank-row '+gc+(x.p.pref===HOME?" kago":"")+'" type="button" data-p="'+x.p.pi+'">'+
+        '<button class="rank-row '+gc+(x.p.pref===HOME?" kago":"")+(isFav(x.p)?" fav":"")+'" type="button" data-p="'+x.p.pi+'">'+
         '<span class="rank-no">'+x.rank+'</span>'+
-        '<span><span class="rank-name">'+kmarkIf(x.p.pref===HOME)+esc(x.p.name)+'</span>'+
+        '<span><span class="rank-name">'+fmarkIf(isFav(x.p))+kmarkIf(x.p.pref===HOME)+esc(x.p.name)+'</span>'+
         '<span class="rank-sub">'+esc(PREF[x.p.pref])+" / "+esc(x.p.club)+" / "+esc(x.p.grade)+" "+esc(x.p.age)+
         (x.h?' ／ <b style="color:var(--accent)">'+x.h+'組'+x.l+'レーン</b>':"")+'</span></span>'+
         '<span class="rank-time"><b>'+esc(x.t)+'</b><span>No.'+x.p.no+'</span></span></button>').join("");
@@ -306,6 +334,7 @@ let evMode="heat";
   $("evQ").addEventListener("input",render);
   $("evBtn").addEventListener("click",render);
   $("evBody").addEventListener("click",e2=>{const b=e2.target.closest("[data-p]");if(b)personSheet(people[+b.dataset.p]);});
+  rerenderEvent=render;
   gotoEvent=function(evIdx,pi){
     $("evQ").value="";
     sel.value=evIdx;
@@ -353,6 +382,7 @@ let evMode="heat";
   sel.addEventListener("change",render);
   $("rlQ").addEventListener("input",render);
   $("rlBtn").addEventListener("click",render);
+  rerenderRelay=render;
   gotoRelay=function(evIdx,rank){
     $("rlQ").value="";
     sel.value=evIdx;
@@ -415,19 +445,26 @@ let evMode="heat";
 })();
 
 /* ---------- 日程・情報 ---------- */
-/* 競技No. → 地元(鹿児島)の出場者。日程をひと目で分かるようにするため。 */
-const homeByNo={};
-function addHome(no,name,extra){
-  const o=homeByNo[no]=homeByNo[no]||{n:0,names:[]};
-  o.n+=1; if(o.names.length<3)o.names.push(name+(extra||""));
-}
+/* 競技No. → その種目に出る人（地元と応援リストの表示に使う） */
+const entriesByNo={};
+function addEntry(no,rec){ (entriesByNo[no]=entriesByNo[no]||[]).push(rec); }
 D.events.forEach(e=>e.rows.forEach(r=>{
   const p=people[r[0]];
-  if(p.pref===HOME)addHome(e.no,p.name,r[2]?"（"+r[2]+"組"+r[3]+"L）":"");
+  addEntry(e.no,{name:p.name,pref:p.pref,no:p.no,lane:r[2]?"（"+r[2]+"組"+r[3]+"L）":""});
 }));
 D.relays.forEach(e=>e.rows.forEach(r=>{
-  if(r[1]===HOME)addHome(e.no,r[2],r[7]?"（"+r[7]+"組"+r[8]+"L）":"");
+  const nos=r[4].map(nm=>{const q=byKey.get(r[1]+" "+norm(nm));return q?q.no:null;}).filter(x=>x!=null);
+  addEntry(e.no,{name:r[2],pref:r[1],no:null,members:nos,lane:r[7]?"（"+r[7]+"組"+r[8]+"L）":"",unit:"チーム"});
 }));
+function pick(no,test){
+  const list=(entriesByNo[no]||[]).filter(test);
+  if(!list.length)return null;
+  return {n:list.length,unit:list[0].unit||"人",names:list.slice(0,3).map(x=>x.name+x.lane)};
+}
+const isHomeRec=x=>x.pref===HOME;
+const isFavRec=x=>(x.no!=null&&FAV.has(x.no))||(x.members&&x.members.some(n=>FAV.has(n)));
+const homeByNo={};
+Object.keys(entriesByNo).forEach(no=>{const v=pick(no,isHomeRec); if(v)homeByNo[no]=v;});
 const homeDayCount={};
 Object.keys(homeByNo).forEach(no=>{
   const e=D.events.concat(D.relays).find(x=>x.no===+no);
@@ -435,10 +472,19 @@ Object.keys(homeByNo).forEach(no=>{
 });
 
 (function(){
-  let day=1, homeOnly=false;
+  let day=1, only="";      // "" / "home" / "fav"
   const chips=$("dayChips");
-  chips.innerHTML=[1,2,3,4,5].map(d=>'<button class="chip'+(d===1?" active":"")+'" data-d="'+d+'">'+d+'日目 '+DAYLABEL[d]+
-    (homeDayCount[d]?'<b>鹿児島'+homeDayCount[d]+'</b>':"")+'</button>').join("");
+  function drawChips(){
+    const favDay={};
+    Object.keys(entriesByNo).forEach(no=>{
+      if(!pick(no,isFavRec))return;
+      const e=D.events.concat(D.relays).find(x=>x.no===+no);
+      if(e)favDay[e.day]=(favDay[e.day]||0)+1;
+    });
+    chips.innerHTML=[1,2,3,4,5].map(d=>'<button class="chip'+(d===day?" active":"")+'" data-d="'+d+'">'+d+'日目 '+DAYLABEL[d]+
+      (homeDayCount[d]?'<b>鹿'+homeDayCount[d]+'</b>':"")+
+      (favDay[d]?'<b class="favnum">★'+favDay[d]+'</b>':"")+'</button>').join("");
+  }
   function renderDay(){
     const info=(D.days||[]).find(x=>x.d===day);
     if(!info){$("dayBox").innerHTML="";return;}
@@ -457,33 +503,44 @@ Object.keys(homeByNo).forEach(no=>{
     const byNo={};
     all.forEach(e=>{(byNo[e.no]=byNo[e.no]||[]).push(e);});
     let nos=Object.keys(byNo).map(Number).sort((a,b)=>a-b);
+    const favByNo={};
+    nos.forEach(n=>{const v=pick(n,isFavRec); if(v)favByNo[n]=v;});
     const hit=nos.filter(n=>homeByNo[n]).length;
-    if(homeOnly)nos=nos.filter(n=>homeByNo[n]);
-    $("homeFilter").innerHTML='<button class="chip'+(homeOnly?" active":"")+'" id="homeOnlyBtn">'+KMARK+' 鹿児島が出るレースだけ<b>'+hit+'</b></button>';
-    $("progCount").textContent=nos.length+"レース"+(hit?"／鹿児島 "+hit:"");
+    const fhit=nos.filter(n=>favByNo[n]).length;
+    if(only==="home")nos=nos.filter(n=>homeByNo[n]);
+    if(only==="fav")nos=nos.filter(n=>favByNo[n]);
+    $("homeFilter").innerHTML=
+      '<button class="chip'+(only==="home"?" active":"")+'" data-only="home">'+KMARK+' 鹿児島<b>'+hit+'</b></button>'+
+      '<button class="chip'+(only==="fav"?" active":"")+'" data-only="fav">★ 応援<b>'+fhit+'</b></button>'+
+      (only?'<button class="chip" data-only="">すべて表示</button>':"");
+    $("progCount").textContent=nos.length+"レース";
     $("progBody").innerHTML=nos.length?nos.map(no=>{
       const list=byNo[no].slice().sort((a,b)=>a.cls-b.cls);
       const e0=list[0], gc=e0.g===0?"m":"f";
       const total=list.reduce((s,e)=>s+e.rows.length,0);
       const sub=list.map(e=>CLS[e.cls]+" "+e.rows.length+(e.style>=5?"チーム":"人")).join(" / ");
-      const hm=homeByNo[no];
-      return '<button type="button" class="progrow '+gc+(hm?" kago":"")+'" data-ev="'+e0.i+'" data-relay="'+(e0.style>=5?1:0)+'">'+
+      const hm=homeByNo[no], fv=favByNo[no];
+      return '<button type="button" class="progrow '+gc+(hm?" kago":"")+(fv?" fav":"")+'" data-ev="'+e0.i+'" data-relay="'+(e0.style>=5?1:0)+'">'+
         '<span class="progno">'+no+'</span>'+
         '<span class="progmain"><b>'+esc((e0.g===0?"男子":"女子")+" "+e0.dist+" "+STY[e0.style])+'</b><span>'+esc(sub)+'</span>'+
-        (hm?'<span class="kagotag">'+KMARK+' 鹿児島 '+hm.n+(e0.style>=5?"チーム":"人")+'<small>'+esc(hm.names.join("・"))+(hm.n>hm.names.length?" ほか":"")+'</small></span>':"")+
+        (hm?'<span class="kagotag">'+KMARK+' 鹿児島 '+hm.n+hm.unit+'<small>'+esc(hm.names.join("・"))+(hm.n>hm.names.length?" ほか":"")+'</small></span>':"")+
+        (fv?'<span class="favtag">★ 応援 '+fv.n+fv.unit+'<small>'+esc(fv.names.join("・"))+(fv.n>fv.names.length?" ほか":"")+'</small></span>':"")+
         '</span>'+
         '<span class="progtime">'+(e0.time||"-")+'<small>'+(e0.heats||"?")+'組 / 計'+total+'</small></span></button>';
     }).join(""):'<div class="empty"><div class="empty-icon">🏊</div><strong>この日は鹿児島の出番はありません</strong></div>';
-    $("homeOnlyBtn").addEventListener("click",()=>{homeOnly=!homeOnly;render();});
+    $("homeFilter").querySelectorAll("[data-only]").forEach(b=>b.addEventListener("click",()=>{
+      only=(only===b.dataset.only)?"":b.dataset.only; render();
+    }));
+    drawChips();
   }
+  rerenderProg=render;
   $("progBody").addEventListener("click",e=>{
     const b=e.target.closest("[data-ev]"); if(!b)return;
     const i=+b.dataset.ev;
     if(b.dataset.relay==="1"){ if(gotoRelay)gotoRelay(i,null); }
     else if(gotoEvent)gotoEvent(i,null);
   });
-  chips.addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;
-    chips.querySelectorAll(".chip").forEach(x=>x.classList.toggle("active",x===b));day=+b.dataset.d;render();});
+  chips.addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;day=+b.dataset.d;render();});
   render();
   const arr=PREF.map((n,i)=>({n:n,...(D.kens[i]||{people:0,men:0,women:0,ind:0,rel:0})})).sort((a,b)=>b.people-a.people);
   $("kenTable").innerHTML='<thead><tr><th>都道府県</th><th class="num">選手</th><th class="num">男</th><th class="num">女</th><th class="num">個人</th><th class="num">リレー</th></tr></thead><tbody>'+
