@@ -54,7 +54,7 @@
         <div class="team-list" id="kenList"></div>
       </div>
       <div class="section-title"><span>選手</span><span id="qCount"></span></div>
-      <p class="foot" style="margin:-4px 0 12px">バッジの数字は<b>Entry Time</b>、<b>Entry ◯位</b>はその種目に申し込んだ人の中で速い順に数えた位置です（レース結果ではありません／<span style="color:var(--accent)">水色=1位</span>・<span style="color:var(--warn)">黄色=8位以内</span>）。</p>
+      <p class="foot" style="margin:-4px 0 12px">バッジの数字は<b>Entry Time</b>と<b>組・レーン</b>です。<b>Entry ◯位</b>はその種目に申し込んだ人の中で速い順に数えた位置で、レース結果ではありません。<br><span class="kmark">鹿</span>のついた選手が<b>鹿児島</b>です。</p>
       <div class="cards" id="qList"></div>
       <div style="margin-top:14px"><button class="linkbtn" id="qMore" type="button" hidden>さらに表示</button></div>
     </section>
@@ -116,7 +116,7 @@
       </div>
       <div class="daybox" id="dayBox"></div>
       <div class="section-title"><span>プログラム（予選）</span><span id="progCount"></span></div>
-      <p class="foot" style="margin:-4px 0 12px">時刻は<b>予定</b>です。棄権が出ると早まるので、<b>30分前には会場にいる</b>つもりで見てください。<br><b style="color:var(--warn)">🔥 のついたレースに鹿児島の選手が出ます。</b>レースをタップすると、その種目の組・レーン一覧にとびます。</p>
+      <p class="foot" style="margin:-4px 0 12px">時刻は<b>予定</b>です。棄権が出ると早まるので、<b>30分前には会場にいる</b>つもりで見てください。<br><span class="kmark">鹿</span><b>のついたレースに鹿児島の選手が出ます。</b>レースをタップすると、その種目の組・レーン一覧にとびます。</p>
       <div id="progBody"></div>
 
       <div class="info-block" style="margin-top:20px">
@@ -152,6 +152,7 @@
           <li><b>所属の「／」</b>は2団体併記（プログラムに両方載る申込）です</li>
           <li><b>リレーの泳者順</b>はEntry時のもので、大会当日に変更されることがあります</li>
           <li><b>Entry Time</b>＝申込タイム、<b>Entry ◯位</b>＝その種目の申込者を速い順に並べた位置。どちらもレース結果ではありません</li>
+          <li><b><span class="kmark">鹿</span>＝鹿児島の選手・チーム</b>。黄色はこの印にだけ使っています（順位を色で示すのはやめました）</li>
           <li>ひらがなでも検索できます。個人種目に出る選手は<b>公式のヨミガナ</b>、リレー要員だけの選手（617名）は名簿に読みの欄が無いので<b>漢字の読み候補</b>でさがしています（推定なので拾えない名前もあります）。どちらも読みは画面に出しません<br><span style="color:var(--faint);font-size:12px">読みデータ: KANJIDIC2 (EDRDG, CC BY-SA 4.0)</span></li>
         </ul>
       </div>

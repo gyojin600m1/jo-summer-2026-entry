@@ -213,6 +213,13 @@ main{padding:16px}
 .progmain span{display:block;color:var(--muted);font-size:12px;margin-top:3px}
 .progtime{text-align:right;color:var(--accent);font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:15px}
 .progtime small{display:block;color:var(--faint);font-size:11px;font-weight:700;margin-top:2px}
+/* 地元(鹿児島)の印。黄色はこの用途だけに使う（順位の色分けは廃止） */
+.kmark{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;margin-right:6px;
+  background:var(--warn);color:#251900;font-size:13px;font-weight:900;line-height:1;vertical-align:middle;
+  flex:0 0 auto}
+.chip .kmark{margin-right:4px}
+.rank-row.kago,.card.kago{box-shadow:inset 0 0 0 1px rgba(248,193,74,.55)}
+.heat-row.kago{background:rgba(248,193,74,.10)}
 /* 鹿児島が出るレースの目印（日程タブ） */
 .progrow{border:0;font:inherit;color:inherit;cursor:pointer}
 .progrow.kago{background:linear-gradient(180deg,rgba(248,193,74,.14),rgba(14,35,65,.84));
@@ -236,7 +243,8 @@ main{padding:16px}
 .tlrow span small{display:block;color:var(--faint);font-size:12px;margin-top:2px}
 .daynote{margin-top:10px;padding:8px 10px;border-radius:6px;background:#0d2144;color:#cde2fb;font-size:13px}
 /* Entry順位のバッジ内表記 */
-.badge b.ent{font-weight:900;letter-spacing:.02em;opacity:.92;margin-left:2px}
+.badge b.ent{font-weight:900;letter-spacing:.02em;opacity:.92;margin-left:8px;padding-left:8px;
+  border-left:1px solid rgba(255,255,255,.22)}
 .badge.accent b.ent,.badge.warn b.ent{opacity:1}
 /* 個人カード→種目へジャンプ */
 button.ev-card{display:block;width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer}
@@ -303,7 +311,7 @@ button.ev-card:active{background:rgba(20,59,105,.9)}
         <div class="team-list" id="kenList"></div>
       </div>
       <div class="section-title"><span>選手</span><span id="qCount"></span></div>
-      <p class="foot" style="margin:-4px 0 12px">バッジの数字は<b>Entry Time</b>、<b>Entry ◯位</b>はその種目に申し込んだ人の中で速い順に数えた位置です（レース結果ではありません／<span style="color:var(--accent)">水色=1位</span>・<span style="color:var(--warn)">黄色=8位以内</span>）。</p>
+      <p class="foot" style="margin:-4px 0 12px">バッジの数字は<b>Entry Time</b>と<b>組・レーン</b>です。<b>Entry ◯位</b>はその種目に申し込んだ人の中で速い順に数えた位置で、レース結果ではありません。<br><span class="kmark">鹿</span>のついた選手が<b>鹿児島</b>です。</p>
       <div class="cards" id="qList"></div>
       <div style="margin-top:14px"><button class="linkbtn" id="qMore" type="button" hidden>さらに表示</button></div>
     </section>
@@ -365,7 +373,7 @@ button.ev-card:active{background:rgba(20,59,105,.9)}
       </div>
       <div class="daybox" id="dayBox"></div>
       <div class="section-title"><span>プログラム（予選）</span><span id="progCount"></span></div>
-      <p class="foot" style="margin:-4px 0 12px">時刻は<b>予定</b>です。棄権が出ると早まるので、<b>30分前には会場にいる</b>つもりで見てください。<br><b style="color:var(--warn)">🔥 のついたレースに鹿児島の選手が出ます。</b>レースをタップすると、その種目の組・レーン一覧にとびます。</p>
+      <p class="foot" style="margin:-4px 0 12px">時刻は<b>予定</b>です。棄権が出ると早まるので、<b>30分前には会場にいる</b>つもりで見てください。<br><span class="kmark">鹿</span><b>のついたレースに鹿児島の選手が出ます。</b>レースをタップすると、その種目の組・レーン一覧にとびます。</p>
       <div id="progBody"></div>
 
       <div class="info-block" style="margin-top:20px">
@@ -401,6 +409,7 @@ button.ev-card:active{background:rgba(20,59,105,.9)}
           <li><b>所属の「／」</b>は2団体併記（プログラムに両方載る申込）です</li>
           <li><b>リレーの泳者順</b>はEntry時のもので、大会当日に変更されることがあります</li>
           <li><b>Entry Time</b>＝申込タイム、<b>Entry ◯位</b>＝その種目の申込者を速い順に並べた位置。どちらもレース結果ではありません</li>
+          <li><b><span class="kmark">鹿</span>＝鹿児島の選手・チーム</b>。黄色はこの印にだけ使っています（順位を色で示すのはやめました）</li>
           <li>ひらがなでも検索できます。個人種目に出る選手は<b>公式のヨミガナ</b>、リレー要員だけの選手（617名）は名簿に読みの欄が無いので<b>漢字の読み候補</b>でさがしています（推定なので拾えない名前もあります）。どちらも読みは画面に出しません<br><span style="color:var(--faint);font-size:12px">読みデータ: KANJIDIC2 (EDRDG, CC BY-SA 4.0)</span></li>
         </ul>
       </div>
@@ -421,6 +430,9 @@ button.ev-card:active{background:rgba(20,59,105,.9)}
 "use strict";
 const D=JSON.parse(document.getElementById("app-data").textContent);
 const PREF=D.prefs, CLS=D.cls, STY=D.sty;
+const HOME=PREF.indexOf("鹿児島");            // 地元。ここだけ特別に印をつける
+const KMARK='<span class="kmark">鹿</span>';   // 鹿児島の印（塗りバッジ。本文の「鹿」と混ざらないように）
+const kmarkIf=on=>on?KMARK:"";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const DAYLABEL=["","8/22(土)","8/23(日)","8/24(月)","8/25(火)","8/26(水)"];
@@ -561,7 +573,7 @@ sheet.addEventListener("click",e=>{
 
 function personSheet(p){
   const gc=p.g===0?"m":"f";
-  let h='<div class="sheet-head"><div><div class="name">'+esc(p.name)+'<span class="gtag '+gc+'">'+(p.g===0?"男子":"女子")+'</span></div>'+
+  let h='<div class="sheet-head"><div><div class="name">'+kmarkIf(p.pref===HOME)+esc(p.name)+'<span class="gtag '+gc+'">'+(p.g===0?"男子":"女子")+'</span></div>'+
     '<div class="sub">'+esc(p.grade)+" "+esc(p.age)+" / "+esc(PREF[p.pref])+" / "+esc(p.club)+'</div></div>'+
     '<button class="close-btn" type="button">&times;</button></div>';
   if(p.ev.length){
@@ -601,14 +613,13 @@ function personCard(p){
   const gc=p.g===0?"m":"f";
   let badges="";
   p.ev.slice(0,6).forEach(x=>{
-    const cl=x.rank===1?"badge accent":(x.rank<=8?"badge warn":"badge");
-    badges+='<span class="'+cl+' wrap">'+esc(CLS[x.e.cls]+" "+x.e.dist+STY[x.e.style])+" "+esc(x.t)+
+    badges+='<span class="badge wrap">'+esc(CLS[x.e.cls]+" "+x.e.dist+STY[x.e.style])+" "+esc(x.t)+
       (x.h?' <b class="ent">'+x.h+'組'+x.l+'レーン</b>':' <b class="ent">Entry '+x.rank+'位</b>')+'</span>';
   });
   p.rel.slice(0,4).forEach(x=>{ badges+='<span class="badge wrap">'+esc(CLS[x.e.cls]+" "+x.e.dist+STY[x.e.style])+'</span>'; });
   if(!badges)badges='<span class="badge">リレー要員</span>';
   return '<div class="card '+gc+'"><button class="card-btn" type="button" data-p="'+p.pi+'">'+
-    '<div class="card-head"><div><div class="name">'+esc(p.name)+'<span class="gtag '+gc+'">'+(p.g===0?"男子":"女子")+'</span></div>'+
+    '<div class="card-head"><div><div class="name">'+kmarkIf(p.pref===HOME)+esc(p.name)+'<span class="gtag '+gc+'">'+(p.g===0?"男子":"女子")+'</span></div>'+
     '<div class="sub">'+esc(p.grade)+" "+esc(p.age)+" / "+esc(PREF[p.pref])+" / "+esc(p.club)+'</div></div>'+
     '<span class="no-badge">No.'+p.no+'</span></div>'+
     '<div class="badge-row">'+badges+'</div></button></div>';
@@ -700,16 +711,16 @@ let evMode="heat";
       $("evBody").innerHTML=Object.keys(byh).map(Number).sort((a,b)=>a-b).map(h=>{
         const list=byh[h].slice().sort((a,b)=>a.l-b.l);
         return '<div class="heat-block '+gc+'"><div class="heat-head"><span>'+h+'組</span><span>'+list.length+'人</span></div>'+
-          list.map(x=>'<div class="heat-row" data-p="'+x.p.pi+'"><span class="lane-no">'+x.l+'</span>'+
-          '<span><b>'+esc(x.p.name)+'</b><br><span class="rank-sub">'+esc(PREF[x.p.pref])+" / "+esc(x.p.club)+'</span></span>'+
+          list.map(x=>'<div class="heat-row'+(x.p.pref===HOME?" kago":"")+'" data-p="'+x.p.pi+'"><span class="lane-no">'+x.l+'</span>'+
+          '<span><b>'+kmarkIf(x.p.pref===HOME)+esc(x.p.name)+'</b><br><span class="rank-sub">'+esc(PREF[x.p.pref])+" / "+esc(x.p.club)+'</span></span>'+
           '<span class="heat-time">'+esc(x.t)+'</span></div>').join("")+'</div>';
       }).join("");
     }else{
       $("evBody").className="rank-list";
       $("evBody").innerHTML=rows.map(x=>
-        '<button class="rank-row '+gc+(x.rank<=8?" top8":"")+'" type="button" data-p="'+x.p.pi+'">'+
+        '<button class="rank-row '+gc+(x.p.pref===HOME?" kago":"")+'" type="button" data-p="'+x.p.pi+'">'+
         '<span class="rank-no">'+x.rank+'</span>'+
-        '<span><span class="rank-name">'+esc(x.p.name)+'</span>'+
+        '<span><span class="rank-name">'+kmarkIf(x.p.pref===HOME)+esc(x.p.name)+'</span>'+
         '<span class="rank-sub">'+esc(PREF[x.p.pref])+" / "+esc(x.p.club)+" / "+esc(x.p.grade)+" "+esc(x.p.age)+
         (x.h?' ／ <b style="color:var(--accent)">'+x.h+'組'+x.l+'レーン</b>':"")+'</span></span>'+
         '<span class="rank-time"><b>'+esc(x.t)+'</b><span>No.'+x.p.no+'</span></span></button>').join("");
@@ -756,8 +767,8 @@ let evMode="heat";
     if(q)rows=rows.filter(x=>(norm(x.team)+x.kana+norm(PREF[x.pref])+norm(x.mem.join(""))).indexOf(q)>=0);
     $("rlCount").textContent=rows.length+" / "+e.rows.length+"チーム";
     $("rlBody").innerHTML=rows.length?rows.map(x=>
-      '<div class="card '+gc+'" data-rank="'+x.rank+'"><div style="padding:14px">'+
-      '<div class="card-head"><div><div class="name" style="font-size:20px">'+esc(x.team)+'<span class="gtag '+gc+'">'+(e.g===0?"男子":"女子")+'</span></div>'+
+      '<div class="card '+gc+(x.pref===HOME?" kago":"")+'" data-rank="'+x.rank+'"><div style="padding:14px">'+
+      '<div class="card-head"><div><div class="name" style="font-size:20px">'+kmarkIf(x.pref===HOME)+esc(x.team)+'<span class="gtag '+gc+'">'+(e.g===0?"男子":"女子")+'</span></div>'+
       '<div class="sub">'+esc(PREF[x.pref])+" / "+esc(x.gaku)+'</div></div>'+
       '<span class="no-badge">'+(x.h?x.h+'組 '+x.l+'レーン':'Entry '+x.rank+'位')+'</span></div>'+
       '<div class="badge-row"><span class="badge time">'+esc(x.t)+'</span><span class="badge">Entry '+x.rank+'位</span></div>'+
@@ -830,7 +841,6 @@ let evMode="heat";
 })();
 
 /* ---------- 日程・情報 ---------- */
-const HOME=PREF.indexOf("鹿児島");
 /* 競技No. → 地元(鹿児島)の出場者。日程をひと目で分かるようにするため。 */
 const homeByNo={};
 function addHome(no,name,extra){
@@ -875,7 +885,7 @@ Object.keys(homeByNo).forEach(no=>{
     let nos=Object.keys(byNo).map(Number).sort((a,b)=>a-b);
     const hit=nos.filter(n=>homeByNo[n]).length;
     if(homeOnly)nos=nos.filter(n=>homeByNo[n]);
-    $("homeFilter").innerHTML='<button class="chip'+(homeOnly?" active":"")+'" id="homeOnlyBtn">🔥 鹿児島が出るレースだけ<b>'+hit+'</b></button>';
+    $("homeFilter").innerHTML='<button class="chip'+(homeOnly?" active":"")+'" id="homeOnlyBtn">'+KMARK+' 鹿児島が出るレースだけ<b>'+hit+'</b></button>';
     $("progCount").textContent=nos.length+"レース"+(hit?"／鹿児島 "+hit:"");
     $("progBody").innerHTML=nos.length?nos.map(no=>{
       const list=byNo[no].slice().sort((a,b)=>a.cls-b.cls);
@@ -886,7 +896,7 @@ Object.keys(homeByNo).forEach(no=>{
       return '<button type="button" class="progrow '+gc+(hm?" kago":"")+'" data-ev="'+e0.i+'" data-relay="'+(e0.style>=5?1:0)+'">'+
         '<span class="progno">'+no+'</span>'+
         '<span class="progmain"><b>'+esc((e0.g===0?"男子":"女子")+" "+e0.dist+" "+STY[e0.style])+'</b><span>'+esc(sub)+'</span>'+
-        (hm?'<span class="kagotag">🔥 鹿児島 '+hm.n+(e0.style>=5?"チーム":"人")+'<small>'+esc(hm.names.join("・"))+(hm.n>hm.names.length?" ほか":"")+'</small></span>':"")+
+        (hm?'<span class="kagotag">'+KMARK+' 鹿児島 '+hm.n+(e0.style>=5?"チーム":"人")+'<small>'+esc(hm.names.join("・"))+(hm.n>hm.names.length?" ほか":"")+'</small></span>':"")+
         '</span>'+
         '<span class="progtime">'+(e0.time||"-")+'<small>'+(e0.heats||"?")+'組 / 計'+total+'</small></span></button>';
     }).join(""):'<div class="empty"><div class="empty-icon">🏊</div><strong>この日は鹿児島の出番はありません</strong></div>';
